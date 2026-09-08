@@ -842,6 +842,7 @@ textarea {
   padding: 24px 30px;
   text-align: center;
   position: relative;
+  overscroll-behavior: contain;
 }
 .zoom-bar {
   height: 25px;
@@ -854,6 +855,11 @@ textarea {
   font-size: 11px;
   text-align: left;
 }
+.zoom-controls { display:flex; align-items:center; gap:3px; }
+.zoom-hint { color:#969ca6; font-size:10px; margin-right:5px; }
+.zoom-controls button { width:25px; height:23px; border:1px solid #dde1e6; border-radius:4px; background:#fff; color:#505866; font-size:16px; line-height:1; }
+.zoom-controls button:hover:not(:disabled) { border-color:#7672d8; color:#4d4ac9; }
+.zoom-controls .zoom-value { width:47px; font-size:10px; font-weight:600; }
 .a4-wrap {
   width: 620px;
   min-height: 877px;

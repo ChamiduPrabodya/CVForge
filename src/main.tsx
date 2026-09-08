@@ -622,7 +622,9 @@ function Builder({
     [color, setColor] = useState("#2563eb"),
     [font, setFont] = useState("Inter"),
     [spacing, setSpacing] = useState(1),
-    previewRef = useRef<HTMLDivElement>(null);
+    [zoom, setZoom] = useState(1),
+    previewRef = useRef<HTMLDivElement>(null),
+    previewAreaRef = useRef<HTMLElement>(null);
   const update = (key: keyof CVData, value: any) =>
     setCV((p) => ({ ...p, [key]: value }));
   const updateItem = <T extends { id: string }>(
@@ -671,6 +673,19 @@ function Builder({
     a.splice(to, 0, item);
     update("sections", a);
   };
+  useEffect(() => {
+    const previewArea = previewAreaRef.current;
+    if (!previewArea) return;
+    const handlePreviewWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const step = event.deltaY < 0 ? 0.1 : -0.1;
+      setZoom((value) => Math.min(1.5, Math.max(0.6, +(value + step).toFixed(1))));
+    };
+    previewArea.addEventListener("wheel", handlePreviewWheel, { passive: false });
+    return () => previewArea.removeEventListener("wheel", handlePreviewWheel);
+  }, []);
   const exportPDF = async () => {
     if (!cv.fullName || !cv.email) {
       notify("Add your name and email before exporting.");
@@ -679,17 +694,24 @@ function Builder({
     const node = previewRef.current;
     if (!node) return;
     notify("Generating your PDF…");
-    const canvas = await html2canvas(node, {
-      scale: 2,
-      backgroundColor: "#ffffff",
-    });
-    const img = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p", "mm", "a4");
-    const w = 210,
-      h = (canvas.height * 210) / canvas.width;
-    pdf.addImage(img, "PNG", 0, 0, w, h);
-    pdf.save(`${cv.fullName.replaceAll(" ", "-")}-CV.pdf`);
-    notify("PDF generated successfully.");
+    const previousZoom = zoom;
+    setZoom(1);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    try {
+      const canvas = await html2canvas(node, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+      });
+      const img = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const w = 210,
+        h = (canvas.height * 210) / canvas.width;
+      pdf.addImage(img, "PNG", 0, 0, w, h);
+      pdf.save(`${cv.fullName.replaceAll(" ", "-")}-CV.pdf`);
+      notify("PDF generated successfully.");
+    } finally {
+      setZoom(previousZoom);
+    }
   };
   return (
     <main className="builder">
@@ -968,10 +990,15 @@ function Builder({
             </Repeater>
           </Accordion>
         </aside>
-        <section className={"preview-area " + (tab === "preview" ? "on" : "")}>
+        <section ref={previewAreaRef} className={"preview-area " + (tab === "preview" ? "on" : "")}>
           <div className="zoom-bar">
             <span>Live preview</span>
-            <span>100%</span>
+            <div className="zoom-controls" aria-label="CV preview zoom controls">
+              <span className="zoom-hint">Ctrl + scroll</span>
+              <button onClick={() => setZoom((value) => Math.max(0.6, +(value - 0.1).toFixed(1)))} disabled={zoom <= 0.6} aria-label="Zoom out">−</button>
+              <button className="zoom-value" onClick={() => setZoom(1)} title="Reset zoom to 100%">{Math.round(zoom * 100)}%</button>
+              <button onClick={() => setZoom((value) => Math.min(1.5, +(value + 0.1).toFixed(1)))} disabled={zoom >= 1.5} aria-label="Zoom in">+</button>
+            </div>
           </div>
           <div
             ref={previewRef}
@@ -981,6 +1008,7 @@ function Builder({
                 "--accent": color,
                 "--cv-font": font,
                 "--space": spacing,
+                zoom,
               } as React.CSSProperties
             }
           >
