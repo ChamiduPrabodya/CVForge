@@ -56,6 +56,7 @@ type Language = { id: string; language: string; proficiency: string };
 type Achievement = { id: string; text: string };
 type Volunteer = { id: string; role: string; organization: string; location: string; start: string; end: string; description: string };
 type Reference = { id: string; name: string; relationship: string; email: string; phone: string };
+type DesignSettings = { accent: string; font: string; spacing: number; bodyFontSize: number; nameFontSize: number };
 type CVData = {
   id: string;
   name: string;
@@ -78,6 +79,7 @@ type CVData = {
   achievements: Achievement[];
   volunteer: Volunteer[];
   references: Reference[];
+  design: DesignSettings;
   sections: string[];
 };
 type Template = {
@@ -87,8 +89,22 @@ type Template = {
   description: string;
   ats?: boolean;
   style: string;
+  design?: DesignSettings;
 };
 const uid = () => Math.random().toString(36).slice(2, 9);
+const apiBase = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+const getOwnerKey = () => {
+  const key = localStorage.getItem("cvforge-owner-key");
+  if (key) return key;
+  const next = crypto.randomUUID();
+  localStorage.setItem("cvforge-owner-key", next);
+  return next;
+};
+async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`${apiBase}${path}`, { headers: { "Content-Type": "application/json", ...(options?.headers || {}) }, ...options });
+  if (!response.ok) throw new Error(`API request failed (${response.status})`);
+  return response.status === 204 ? (undefined as T) : response.json() as Promise<T>;
+}
 const initialCV: CVData = {
   id: uid(),
   name: "Software Engineer CV",
@@ -150,9 +166,23 @@ const initialCV: CVData = {
   achievements: [{ id: uid(), text: "Recognized for mentoring and onboarding 5 junior engineers." }],
   volunteer: [{ id: uid(), role: "Coding Mentor", organization: "Code for Tomorrow", location: "San Francisco, CA", start: "2023", end: "Present", description: "Mentor aspiring developers through weekly workshops." }],
   references: [{ id: uid(), name: "Jordan Lee", relationship: "Engineering Manager, Northstar Labs", email: "jordan.lee@example.com", phone: "+1 415 555 0123" }],
+  design: { accent: "#2563eb", font: "Inter", spacing: 1, bodyFontSize: 11, nameFontSize: 28 },
   sections: ["summary", "experience", "education", "skills", "projects", "certifications", "languages", "achievements", "volunteer", "references"],
 };
+const hydrateCV = (stored: Partial<CVData>): CVData => ({
+  ...initialCV,
+  ...stored,
+  projects: stored.projects ?? initialCV.projects,
+  certifications: stored.certifications ?? initialCV.certifications,
+  languages: stored.languages ?? initialCV.languages,
+  achievements: stored.achievements ?? initialCV.achievements,
+  volunteer: stored.volunteer ?? initialCV.volunteer,
+  references: stored.references ?? initialCV.references,
+  design: { ...initialCV.design, ...(stored.design ?? {}) },
+  sections: stored.sections?.includes("certifications") ? stored.sections : [...(stored.sections ?? initialCV.sections), "certifications", "languages", "achievements", "volunteer", "references"],
+});
 const templates: Template[] = [
+  { id: "custom", name: "Blank Canvas", category: "Custom", description: "A flexible foundation for your own visual style.", style: "custom" },
   {
     id: "classic",
     name: "Meridian",
@@ -240,6 +270,7 @@ const categories = [
   "ATS-Friendly",
   "Student",
   "Experienced",
+  "Custom",
 ];
 const sectionTitles: Record<string, string> = {
   summary: "Profile",
@@ -266,39 +297,70 @@ function App() {
   const [page, setPage] = useState("home"),
     [cv, setCV] = useState<CVData>(initialCV),
     [toast, setToast] = useState(""),
-    [mobile, setMobile] = useState(false);
+    [mobile, setMobile] = useState(false),
+    [customTemplates, setCustomTemplates] = useState<Template[]>([]);
   useEffect(() => {
     const saved = localStorage.getItem("cvforge-doc");
     if (saved)
       try {
-        const parsed = JSON.parse(saved);
-        setCV({
-          ...initialCV,
-          ...parsed,
-          projects: parsed.projects ?? initialCV.projects,
-          certifications: parsed.certifications ?? initialCV.certifications,
-          languages: parsed.languages ?? initialCV.languages,
-          achievements: parsed.achievements ?? initialCV.achievements,
-          volunteer: parsed.volunteer ?? initialCV.volunteer,
-          references: parsed.references ?? initialCV.references,
-          sections: parsed.sections?.includes("certifications")
-            ? parsed.sections
-            : [...(parsed.sections ?? initialCV.sections), "certifications", "languages", "achievements", "volunteer", "references"],
-        });
+        setCV(hydrateCV(JSON.parse(saved)));
       } catch {}
+    void apiRequest<{ document: CVData }[]>(`/cvs?ownerKey=${encodeURIComponent(getOwnerKey())}`)
+      .then((records) => {
+        if (!records[0]?.document) return;
+        const remoteCV = hydrateCV(records[0].document);
+        setCV(remoteCV);
+        localStorage.setItem("cvforge-doc", JSON.stringify(remoteCV));
+      })
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    try {
+      const savedTemplates = JSON.parse(localStorage.getItem("cvforge-custom-templates") || "[]");
+      if (Array.isArray(savedTemplates)) setCustomTemplates(savedTemplates);
+    } catch {}
+    void apiRequest<Template[]>(`/templates?ownerKey=${encodeURIComponent(getOwnerKey())}`)
+      .then((templates) => {
+        if (!templates.length) return;
+        setCustomTemplates(templates);
+        localStorage.setItem("cvforge-custom-templates", JSON.stringify(templates));
+      })
+      .catch(() => {});
   }, []);
   const notify = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(""), 2600);
   };
-  const choose = (id: string) => {
-    setCV((p) => ({ ...p, template: id }));
+  const choose = (template: Template) => {
+    setCV((p) => ({ ...p, template: template.design ? "custom" : template.id, design: template.design ?? p.design }));
     setPage("builder");
     notify("Template selected — your information is preserved.");
   };
-  const save = () => {
+  const saveCustomTemplate = (design: DesignSettings) => {
+    const name = window.prompt("Name your reusable template", "My custom template")?.trim();
+    if (!name) return;
+    const template: Template = { id: `saved-${uid()}`, name, category: "Custom", description: "Your saved colors, type scale, and spacing.", style: "custom", design };
+    setCustomTemplates((items) => {
+      const next = [...items, template];
+      localStorage.setItem("cvforge-custom-templates", JSON.stringify(next));
+      return next;
+    });
+    void apiRequest(`/templates/${encodeURIComponent(template.id)}`, {
+      method: "PUT",
+      body: JSON.stringify({ ownerKey: getOwnerKey(), template }),
+    }).then(() => notify("Custom template saved to MongoDB.")).catch(() => notify("Custom template saved locally — MongoDB is unavailable."));
+  };
+  const save = async () => {
     localStorage.setItem("cvforge-doc", JSON.stringify(cv));
-    notify("CV saved successfully.");
+    try {
+      await apiRequest(`/cvs/${encodeURIComponent(cv.id)}`, {
+        method: "PUT",
+        body: JSON.stringify({ ownerKey: getOwnerKey(), document: cv }),
+      });
+      notify("CV saved to MongoDB.");
+    } catch {
+      notify("CV saved locally — MongoDB is unavailable.");
+    }
   };
   return (
     <>
@@ -348,9 +410,9 @@ function App() {
         </div>
       )}
       {page === "home" && <Home go={setPage} />}{" "}
-      {page === "templates" && <Templates cv={cv} choose={choose} />}{" "}
+      {page === "templates" && <Templates cv={cv} templates={[...templates, ...customTemplates]} choose={choose} />}{" "}
       {page === "builder" && (
-        <Builder cv={cv} setCV={setCV} save={save} notify={notify} />
+        <Builder cv={cv} setCV={setCV} save={save} notify={notify} saveCustomTemplate={saveCustomTemplate} />
       )}{" "}
       {page === "dashboard" && <Dashboard cv={cv} go={setPage} save={save} />}{" "}
       {page === "ats" && <ATS cv={cv} />}{" "}
@@ -503,14 +565,16 @@ function MiniCV() {
 
 function Templates({
   cv,
+  templates: allTemplates,
   choose,
 }: {
   cv: CVData;
-  choose: (id: string) => void;
+  templates: Template[];
+  choose: (template: Template) => void;
 }) {
   const [filter, setFilter] = useState("All"),
     [preview, setPreview] = useState<Template | null>(null);
-  const visible = templates.filter(
+  const visible = allTemplates.filter(
     (t) => filter === "All" || t.category === filter,
   );
   return (
@@ -549,7 +613,7 @@ function Templates({
               {t.ats && <span className="badge">ATS-friendly</span>}
               <div className="card-actions">
                 <button onClick={() => setPreview(t)}>Preview</button>
-                <button className="primary small" onClick={() => choose(t.id)}>
+                <button className="primary small" onClick={() => choose(t)}>
                   Use template <ArrowRight size={14} />
                 </button>
               </div>
@@ -563,14 +627,14 @@ function Templates({
             <button className="close" onClick={() => setPreview(null)}>
               <X />
             </button>
-            <div className="modal-cv">
-              <CVPreview cv={{ ...cv, template: preview.id }} />
+            <div className="modal-cv" style={{ "--accent": preview.design?.accent ?? cv.design.accent, "--cv-font": preview.design?.font ?? cv.design.font, "--space": preview.design?.spacing ?? cv.design.spacing, "--body-font-size": `${preview.design?.bodyFontSize ?? cv.design.bodyFontSize}px`, "--name-font-size": `${preview.design?.nameFontSize ?? cv.design.nameFontSize}px` } as React.CSSProperties}>
+              <CVPreview cv={{ ...cv, template: preview.design ? "custom" : preview.id, design: preview.design ?? cv.design }} />
             </div>
             <div>
               <span className="eyebrow">{preview.category} TEMPLATE</span>
               <h2>{preview.name}</h2>
               <p>{preview.description}</p>
-              <button className="primary" onClick={() => choose(preview.id)}>
+              <button className="primary" onClick={() => choose(preview)}>
                 Use this template <ArrowRight size={16} />
               </button>
               <button className="text-button" onClick={() => setPreview(null)}>
@@ -585,7 +649,7 @@ function Templates({
 }
 function TemplateThumb({ cv, template }: { cv: CVData; template: Template }) {
   return (
-    <div className={"template-thumb " + template.style}>
+    <div className={"template-thumb " + template.style} style={{ "--template-accent": template.design?.accent ?? "#514ed0" } as React.CSSProperties}>
       <ThumbDesign cv={cv} style={template.style} />
     </div>
   );
@@ -602,6 +666,7 @@ function ThumbDesign({ cv, style }: { cv: CVData; style: string }) {
   if (style === "elegant") return <><div className="thumb-elegant-kicker">CURRICULUM VITAE</div><div className="thumb-name">{cv.fullName}</div>{photo}<div className="thumb-elegant-rule" /><div className="thumb-title">{cv.title}</div><div className="thumb-head">EXPERIENCE</div>{lines}{skills}</>;
   if (style === "corporate") return <><div className="thumb-corporate-rail" />{photo}<div className="thumb-name">{cv.fullName}</div><div className="thumb-title">{cv.title}</div><div className="thumb-head">CAREER HISTORY</div>{lines}{skills}</>;
   if (style === "twocolumn") return <><div className="thumb-side-content">{photo}<div className="thumb-side-label">CONTACT</div><div className="thumb-side-label">SKILLS</div></div><div className="thumb-main-content"><div className="thumb-name">{cv.fullName}</div><div className="thumb-title">{cv.title}</div><div className="thumb-head">EXPERIENCE</div>{lines}<div className="thumb-head">EDUCATION</div>{lines}</div></>;
+  if (style === "custom") return <><div className="thumb-blank-mark">+</div><div className="thumb-blank-title">YOUR DESIGN</div><div className="thumb-blank-copy">Start with a blank canvas<br />and make it yours.</div><div className="thumb-blank-lines">{lines}</div></>;
   if (style === "classic") return <><div className="thumb-name">{cv.fullName}</div>{photo}<div className="thumb-title">{cv.title} · San Francisco</div><div className="thumb-classic-rule" /><div className="thumb-head">PROFESSIONAL EXPERIENCE</div>{lines}{skills}</>;
   return <><div className="thumb-modern-accent" />{photo}<div className="thumb-name">{cv.fullName}</div><div className="thumb-title">{cv.title}</div><div className="thumb-head">ABOUT</div>{lines}<div className="thumb-head">EXPERIENCE</div>{lines}{skills}</>;
 }
@@ -611,22 +676,32 @@ function Builder({
   setCV,
   save,
   notify,
+  saveCustomTemplate,
 }: {
   cv: CVData;
   setCV: React.Dispatch<React.SetStateAction<CVData>>;
   save: () => void;
   notify: (s: string) => void;
+  saveCustomTemplate: (design: DesignSettings) => void;
 }) {
   const [tab, setTab] = useState<"edit" | "preview" | "style">("edit"),
     [open, setOpen] = useState("personal"),
-    [color, setColor] = useState("#2563eb"),
-    [font, setFont] = useState("Inter"),
-    [spacing, setSpacing] = useState(1),
+    [color, setColor] = useState(cv.design?.accent ?? "#2563eb"),
+    [font, setFont] = useState(cv.design?.font ?? "Inter"),
+    [spacing, setSpacing] = useState(cv.design?.spacing ?? 1),
+    [bodyFontSize, setBodyFontSize] = useState(cv.design?.bodyFontSize ?? 11),
+    [nameFontSize, setNameFontSize] = useState(cv.design?.nameFontSize ?? 28),
     [zoom, setZoom] = useState(1),
     previewRef = useRef<HTMLDivElement>(null),
     previewAreaRef = useRef<HTMLElement>(null);
   const update = (key: keyof CVData, value: any) =>
     setCV((p) => ({ ...p, [key]: value }));
+  useEffect(() => {
+    setCV((document) => ({
+      ...document,
+      design: { accent: color, font, spacing, bodyFontSize, nameFontSize },
+    }));
+  }, [color, font, spacing, bodyFontSize, nameFontSize, setCV]);
   const updateItem = <T extends { id: string }>(
     key: keyof CVData,
     items: T[],
@@ -1008,6 +1083,8 @@ function Builder({
                 "--accent": color,
                 "--cv-font": font,
                 "--space": spacing,
+                "--body-font-size": `${bodyFontSize}px`,
+                "--name-font-size": `${nameFontSize}px`,
                 zoom,
               } as React.CSSProperties
             }
@@ -1085,6 +1162,31 @@ function Builder({
               onChange={(e) => setSpacing(+e.target.value)}
             />
           </label>
+          <label className="range-label">
+            Body text size <b>{bodyFontSize}px</b>
+            <input
+              type="range"
+              min="9"
+              max="14"
+              step="1"
+              value={bodyFontSize}
+              onChange={(e) => setBodyFontSize(+e.target.value)}
+            />
+          </label>
+          <label className="range-label">
+            Name heading size <b>{nameFontSize}px</b>
+            <input
+              type="range"
+              min="22"
+              max="36"
+              step="1"
+              value={nameFontSize}
+              onChange={(e) => setNameFontSize(+e.target.value)}
+            />
+          </label>
+          <button className="save-template-button" onClick={() => saveCustomTemplate({ accent: color, font, spacing, bodyFontSize, nameFontSize })}>
+            <Save size={14} /> Save this design as a template
+          </button>
           <h3>Section order</h3>
           <div className="order-list">
             {cv.sections.map((s, i) => (
