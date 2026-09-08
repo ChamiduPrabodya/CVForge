@@ -155,78 +155,78 @@ const initialCV: CVData = {
 const templates: Template[] = [
   {
     id: "classic",
-    name: "Classic Professional",
+    name: "Meridian",
     category: "Professional",
-    description: "Timeless hierarchy for every industry.",
+    description: "A formal, single-column standard for established industries.",
     ats: true,
     style: "classic",
   },
   {
     id: "modern",
-    name: "Modern Minimal",
+    name: "Atlas",
     category: "Modern",
-    description: "Crisp, confident, and beautifully restrained.",
+    description: "Clean editorial structure with a confident modern accent.",
     ats: true,
     style: "modern",
   },
   {
     id: "executive",
-    name: "Executive",
+    name: "Boardroom",
     category: "Executive",
-    description: "Commanding layout for leadership roles.",
+    description: "An executive profile built around leadership and impact.",
     style: "executive",
   },
   {
     id: "creative",
-    name: "Creative",
+    name: "Studio",
     category: "Creative",
-    description: "Expressive structure for creative careers.",
+    description: "A polished portfolio-inspired layout for creative work.",
     style: "creative",
   },
   {
     id: "tech",
-    name: "Tech Professional",
+    name: "Circuit",
     category: "Professional",
-    description: "Data-forward format for technical talent.",
+    description: "Structured, data-forward design for product and technology.",
     ats: true,
     style: "tech",
   },
   {
     id: "ats",
-    name: "ATS Simple",
+    name: "Essential ATS",
     category: "ATS-Friendly",
-    description: "Straightforward and scanner-friendly.",
+    description: "A clear, parseable resume with no unnecessary decoration.",
     ats: true,
     style: "ats",
   },
   {
     id: "student",
-    name: "Student",
+    name: "Launchpad",
     category: "Student",
-    description: "Puts potential and education up front.",
+    description: "Education and projects first for students and early careers.",
     ats: true,
     style: "student",
   },
   {
     id: "elegant",
-    name: "Elegant",
+    name: "Maison",
     category: "Minimal",
-    description: "A warm editorial take on a CV.",
+    description: "Refined typography and breathing room for thoughtful roles.",
     style: "elegant",
   },
   {
     id: "corporate",
-    name: "Corporate",
+    name: "Slate",
     category: "Professional",
-    description: "Polished for established organizations.",
+    description: "A structured corporate format for finance, consulting, and ops.",
     ats: true,
     style: "corporate",
   },
   {
     id: "twocolumn",
-    name: "Two Column Modern",
+    name: "Frame",
     category: "Experienced",
-    description: "Balanced information with a strong side rail.",
+    description: "A balanced two-column profile with a focused information rail.",
     style: "twocolumn",
   },
 ];
@@ -586,22 +586,24 @@ function Templates({
 function TemplateThumb({ cv, template }: { cv: CVData; template: Template }) {
   return (
     <div className={"template-thumb " + template.style}>
-      <div className="thumb-name">{cv.fullName}</div>
-      <div className="thumb-title">{cv.title}</div>
-      <div className="thumb-line wide" />
-      <div className="thumb-line" />
-      <div className="thumb-line" />
-      <div className="thumb-head">EXPERIENCE</div>
-      <div className="thumb-line wide" />
-      <div className="thumb-line" />
-      <div className="thumb-head">SKILLS</div>
-      <div className="thumb-chips">
-        <i />
-        <i />
-        <i />
-      </div>
+      <ThumbDesign cv={cv} style={template.style} />
     </div>
   );
+}
+function ThumbDesign({ cv, style }: { cv: CVData; style: string }) {
+  const photo = <div className="thumb-photo-slot">{cv.photo ? <img src={cv.photo} alt="" /> : <span>PHOTO</span>}</div>;
+  const lines = <><div className="thumb-line wide" /><div className="thumb-line" /><div className="thumb-line" /></>;
+  const skills = <><div className="thumb-head">SKILLS</div><div className="thumb-chips"><i /><i /><i /></div></>;
+  if (style === "executive") return <><div className="thumb-executive-bar" /><div className="thumb-name">{cv.fullName}</div><div className="thumb-title">EXECUTIVE PROFILE</div>{photo}<div className="thumb-head">LEADERSHIP EXPERIENCE</div>{lines}{skills}</>;
+  if (style === "creative") return <><div className="thumb-creative-block" />{photo}<div className="thumb-name">{cv.fullName}</div><div className="thumb-title">{cv.title}</div><div className="thumb-creative-rule" />{lines}<div className="thumb-head">SELECTED WORK</div>{lines}</>;
+  if (style === "tech") return <><div className="thumb-tech-label">// PROFILE</div><div className="thumb-name">{cv.fullName}</div>{photo}<div className="thumb-title">{cv.title}</div><div className="thumb-tech-grid">{lines}</div><div className="thumb-head">TECH STACK</div>{skills}</>;
+  if (style === "ats") return <><div className="thumb-name">{cv.fullName}</div><div className="thumb-title">{cv.title} · San Francisco, CA</div><div className="thumb-ats-rule" /><div className="thumb-head">PROFESSIONAL SUMMARY</div>{lines}<div className="thumb-head">EXPERIENCE</div>{lines}</>;
+  if (style === "student") return <><div className="thumb-student-band" /><div className="thumb-name">{cv.fullName}</div>{photo}<div className="thumb-title">{cv.title}</div><div className="thumb-head">EDUCATION</div>{lines}<div className="thumb-head">PROJECTS</div>{lines}</>;
+  if (style === "elegant") return <><div className="thumb-elegant-kicker">CURRICULUM VITAE</div><div className="thumb-name">{cv.fullName}</div>{photo}<div className="thumb-elegant-rule" /><div className="thumb-title">{cv.title}</div><div className="thumb-head">EXPERIENCE</div>{lines}{skills}</>;
+  if (style === "corporate") return <><div className="thumb-corporate-rail" />{photo}<div className="thumb-name">{cv.fullName}</div><div className="thumb-title">{cv.title}</div><div className="thumb-head">CAREER HISTORY</div>{lines}{skills}</>;
+  if (style === "twocolumn") return <><div className="thumb-side-content">{photo}<div className="thumb-side-label">CONTACT</div><div className="thumb-side-label">SKILLS</div></div><div className="thumb-main-content"><div className="thumb-name">{cv.fullName}</div><div className="thumb-title">{cv.title}</div><div className="thumb-head">EXPERIENCE</div>{lines}<div className="thumb-head">EDUCATION</div>{lines}</div></>;
+  if (style === "classic") return <><div className="thumb-name">{cv.fullName}</div>{photo}<div className="thumb-title">{cv.title} · San Francisco</div><div className="thumb-classic-rule" /><div className="thumb-head">PROFESSIONAL EXPERIENCE</div>{lines}{skills}</>;
+  return <><div className="thumb-modern-accent" />{photo}<div className="thumb-name">{cv.fullName}</div><div className="thumb-title">{cv.title}</div><div className="thumb-head">ABOUT</div>{lines}<div className="thumb-head">EXPERIENCE</div>{lines}{skills}</>;
 }
 
 function Builder({
@@ -1154,6 +1156,14 @@ function Repeater<T extends { id: string }>({
 function CVPreview({ cv }: { cv: CVData }) {
   const t = templates.find((x) => x.id === cv.template)!;
   const contact = [cv.email, cv.phone, cv.location, cv.website].filter(Boolean);
+  const photo = <div className="cv-photo-slot" aria-label="Profile photo">{cv.photo ? <img src={cv.photo} alt={`${cv.fullName}'s profile`} /> : <span>{cv.fullName.split(" ").map((part) => part[0]).join("")}</span>}</div>;
+  if (t.style === "twocolumn") {
+    const rail = ["skills", "languages", "certifications"];
+    return <article className="cv-document cv-twocolumn">
+      <aside className="cv-side-rail">{photo}<h1>{cv.fullName}</h1><h2>{cv.title}</h2><div className="contact">{contact.map((item) => <span key={item}>{item}</span>)}</div>{cv.sections.filter((section) => rail.includes(section)).map((section) => <CVSection key={section} type={section} cv={cv} />)}</aside>
+      <main className="cv-main-column">{cv.sections.filter((section) => !rail.includes(section)).map((section) => <CVSection key={section} type={section} cv={cv} />)}</main>
+    </article>;
+  }
   return (
     <article className={"cv-document cv-" + t.style}>
       <header className="cv-header">
@@ -1161,14 +1171,7 @@ function CVPreview({ cv }: { cv: CVData }) {
           <h1>{cv.fullName}</h1>
           <h2>{cv.title}</h2>
         </div>
-        {cv.photo ? <img className="cv-photo" src={cv.photo} alt="Profile" /> : t.style === "creative" && (
-          <div className="cv-circle">
-            {cv.fullName
-              .split(" ")
-              .map((x) => x[0])
-              .join("")}
-          </div>
-        )}
+        {photo}
         <div className="contact">
           {contact.map((x) => (
             <span key={x}>{x}</span>
@@ -1486,4 +1489,29 @@ function Cover({ cv, notify }: { cv: CVData; notify: (s: string) => void }) {
         <section className="letter">
           <div className="letter-toolbar">
             <b>Your cover letter</b>
-            
+            <button onClick={() => navigator.clipboard.writeText(letter)}>
+              <Copy size={15} /> Copy
+            </button>
+          </div>
+          {letter ? (
+            <textarea
+              value={letter}
+              onChange={(e) => setLetter(e.target.value)}
+            />
+          ) : (
+            <div className="letter-empty">
+              <FileText size={28} />
+              <b>Ready when you are</b>
+              <p>
+                Tell us about the role and we’ll create a thoughtful first
+                draft.
+              </p>
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
+
+createRoot(document.getElementById("root")!).render(<App />);
