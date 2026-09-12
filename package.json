@@ -4,18 +4,22 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node server/dev.js",
+    "dev:web": "vite",
     "dev:api": "node server/index.js",
+    "reset:admin": "node server/reset-admin-password.js",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
     "@vitejs/plugin-react": "latest",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "html2canvas": "latest",
+    "jsonwebtoken": "^9.0.3",
     "jspdf": "latest",
     "lucide-react": "latest",
     "mongoose": "^9.9.5",

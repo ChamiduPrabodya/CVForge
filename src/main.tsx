@@ -56,7 +56,8 @@ type Language = { id: string; language: string; proficiency: string };
 type Achievement = { id: string; text: string };
 type Volunteer = { id: string; role: string; organization: string; location: string; start: string; end: string; description: string };
 type Reference = { id: string; name: string; relationship: string; email: string; phone: string };
-type DesignSettings = { accent: string; font: string; spacing: number; bodyFontSize: number; nameFontSize: number };
+type DesignSettings = { accent: string; font: string; spacing: number; bodyFontSize: number; nameFontSize: number; headingFont?: string; secondaryAccent?: string; background?: string };
+type AuthUser = { id: string; email: string; role: "admin" | "user" };
 type CVData = {
   id: string;
   name: string;
@@ -81,6 +82,7 @@ type CVData = {
   references: Reference[];
   design: DesignSettings;
   sections: string[];
+  templateConfig?: Template;
 };
 type Template = {
   id: string;
@@ -90,9 +92,59 @@ type Template = {
   ats?: boolean;
   style: string;
   design?: DesignSettings;
+  status?: "draft" | "published";
+  version?: number;
+  layout?: "single" | "two-column";
+  sidebarPosition?: "left" | "right";
+  sidebarWidth?: number;
+  headerAlign?: "left" | "center";
+  showPhoto?: boolean;
+  photoShape?: "circle" | "rounded" | "square";
+  pageSize?: "a4" | "letter";
+  pageMargin?: number;
+  density?: "compact" | "standard" | "relaxed";
+  divider?: "line" | "accent" | "none";
+  skillStyle?: "chips" | "plain" | "bars";
+  contactStyle?: "inline" | "stacked";
+  sections?: string[];
+  sidebarSections?: string[];
+  sectionLabels?: Record<string, string>;
 };
+const adminTemplateLayouts = [
+  ["modern", "Modern editorial"], ["classic", "Classic"], ["executive", "Executive"],
+  ["creative", "Creative"], ["minimal", "Minimal"], ["tech", "Technical"],
+  ["ats", "ATS focused"], ["student", "Student"], ["elegant", "Elegant"],
+  ["corporate", "Corporate"], ["twocolumn", "Two column"],
+] as const;
+const newSystemTemplateDraft = (): Template => ({
+  id: "",
+  name: "",
+  category: "Custom",
+  description: "A new CVForge template.",
+  style: "modern",
+  ats: true,
+  status: "draft",
+  version: 1,
+  layout: "single",
+  sidebarPosition: "left",
+  sidebarWidth: 32,
+  headerAlign: "left",
+  showPhoto: true,
+  photoShape: "circle",
+  pageSize: "a4",
+  pageMargin: 42,
+  density: "standard",
+  divider: "line",
+  skillStyle: "chips",
+  contactStyle: "inline",
+  sections: [...initialCV.sections],
+  sidebarSections: ["skills", "languages", "certifications"],
+  sectionLabels: {},
+  design: { accent: "#514ed0", secondaryAccent: "#697386", background: "#ffffff", font: "Inter", headingFont: "Inter", spacing: 1, bodyFontSize: 11, nameFontSize: 28 },
+});
 const uid = () => Math.random().toString(36).slice(2, 9);
 const apiBase = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+const getToken = () => localStorage.getItem("cvforge-auth-token");
 const getOwnerKey = () => {
   const key = localStorage.getItem("cvforge-owner-key");
   if (key) return key;
@@ -101,71 +153,44 @@ const getOwnerKey = () => {
   return next;
 };
 async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${apiBase}${path}`, { headers: { "Content-Type": "application/json", ...(options?.headers || {}) }, ...options });
-  if (!response.ok) throw new Error(`API request failed (${response.status})`);
+  const token = getToken();
+  const headers = new Headers(options?.headers);
+  if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  let response: Response;
+  try {
+    response = await fetch(`${apiBase}${path}`, { ...options, headers, signal: options?.signal ?? AbortSignal.timeout(15000) });
+  } catch {
+    throw new Error("Unable to reach the server. Please try again shortly.");
+  }
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(typeof body?.error === "string" ? body.error : `API request failed (${response.status})`);
+  }
   return response.status === 204 ? (undefined as T) : response.json() as Promise<T>;
 }
 const initialCV: CVData = {
   id: uid(),
-  name: "Software Engineer CV",
+  name: "Untitled CV",
   template: "modern",
-  fullName: "Alex Morgan",
-  title: "Product-focused Software Engineer",
-  email: "alex.morgan@email.com",
-  phone: "+1 415 555 0182",
-  location: "San Francisco, CA",
-  website: "alexmorgan.dev",
-  linkedin: "linkedin.com/in/alexmorgan",
+  fullName: "",
+  title: "",
+  email: "",
+  phone: "",
+  location: "",
+  website: "",
+  linkedin: "",
   photo: "",
-  summary:
-    "Software engineer with 5+ years of experience building accessible, high-performing digital products. I turn complex customer problems into thoughtful, scalable experiences.",
-  experience: [
-    {
-      id: uid(),
-      title: "Senior Frontend Engineer",
-      company: "Northstar Labs",
-      location: "San Francisco, CA",
-      start: "2022",
-      end: "Present",
-      description:
-        "Led the rebuild of a customer platform used by 40,000+ people. Improved page performance by 38% and partnered with product and design to ship a cohesive design system.",
-    },
-    {
-      id: uid(),
-      title: "Frontend Engineer",
-      company: "Bright & Co.",
-      location: "Remote",
-      start: "2019",
-      end: "2022",
-      description:
-        "Built responsive web applications with React and TypeScript. Mentored junior engineers and improved test coverage across core product flows.",
-    },
-  ],
-  education: [
-    {
-      id: uid(),
-      degree: "B.S. Computer Science",
-      school: "University of California",
-      location: "Berkeley, CA",
-      start: "2015",
-      end: "2019",
-    },
-  ],
-  skills: ["React", "TypeScript", "Node.js", "Product Design", "SQL"],
-  projects: [
-    {
-      id: uid(),
-      name: "Design System",
-      description:
-        "A component library that accelerates teams without sacrificing quality.",
-      tech: "React · Storybook · CSS",
-    },
-  ],
-  certifications: [{ id: uid(), name: "AWS Certified Cloud Practitioner", organization: "Amazon Web Services", date: "2024", url: "" }],
-  languages: [{ id: uid(), language: "English", proficiency: "Native" }],
-  achievements: [{ id: uid(), text: "Recognized for mentoring and onboarding 5 junior engineers." }],
-  volunteer: [{ id: uid(), role: "Coding Mentor", organization: "Code for Tomorrow", location: "San Francisco, CA", start: "2023", end: "Present", description: "Mentor aspiring developers through weekly workshops." }],
-  references: [{ id: uid(), name: "Jordan Lee", relationship: "Engineering Manager, Northstar Labs", email: "jordan.lee@example.com", phone: "+1 415 555 0123" }],
+  summary: "",
+  experience: [],
+  education: [],
+  skills: [],
+  projects: [],
+  certifications: [],
+  languages: [],
+  achievements: [],
+  volunteer: [],
+  references: [],
   design: { accent: "#2563eb", font: "Inter", spacing: 1, bodyFontSize: 11, nameFontSize: 28 },
   sections: ["summary", "experience", "education", "skills", "projects", "certifications", "languages", "achievements", "volunteer", "references"],
 };
@@ -179,7 +204,7 @@ const hydrateCV = (stored: Partial<CVData>): CVData => ({
   volunteer: stored.volunteer ?? initialCV.volunteer,
   references: stored.references ?? initialCV.references,
   design: { ...initialCV.design, ...(stored.design ?? {}) },
-  sections: stored.sections?.includes("certifications") ? stored.sections : [...(stored.sections ?? initialCV.sections), "certifications", "languages", "achievements", "volunteer", "references"],
+  sections: Array.isArray(stored.sections) ? [...new Set(stored.sections.filter((section) => initialCV.sections.includes(section)))] : [...initialCV.sections],
 });
 const templates: Template[] = [
   { id: "custom", name: "Blank Canvas", category: "Custom", description: "A flexible foundation for your own visual style.", style: "custom" },
@@ -294,18 +319,54 @@ const nav = [
 ];
 
 function App() {
-  const [page, setPage] = useState("home"),
+  const [page, setPage] = useState(() => {
+      try { return localStorage.getItem("cvforge-auth-user") ? "dashboard" : "home"; } catch { return "home"; }
+    }),
     [cv, setCV] = useState<CVData>(initialCV),
     [toast, setToast] = useState(""),
     [mobile, setMobile] = useState(false),
-    [customTemplates, setCustomTemplates] = useState<Template[]>([]);
+    [customTemplates, setCustomTemplates] = useState<Template[]>([]),
+    [systemTemplates, setSystemTemplates] = useState<Template[]>(templates),
+    [auth, setAuth] = useState<AuthUser | null>(() => {
+      try { return JSON.parse(localStorage.getItem("cvforge-auth-user") || "null"); } catch { return null; }
+    });
   useEffect(() => {
     const saved = localStorage.getItem("cvforge-doc");
     if (saved)
       try {
-        setCV(hydrateCV(JSON.parse(saved)));
+        const stored = JSON.parse(saved);
+        if (stored.fullName === "Alex Morgan" && stored.name === "Software Engineer CV") localStorage.removeItem("cvforge-doc");
+        else setCV(hydrateCV(stored));
       } catch {}
-    void apiRequest<{ document: CVData }[]>(`/cvs?ownerKey=${encodeURIComponent(getOwnerKey())}`)
+  }, []);
+  useEffect(() => {
+    try {
+      const savedTemplates = JSON.parse(localStorage.getItem("cvforge-custom-templates") || "[]");
+      if (Array.isArray(savedTemplates)) setCustomTemplates(savedTemplates);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    void apiRequest<Template[]>("/templates/public")
+      .then((items) => { if (items.length) setSystemTemplates(items); })
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (!auth) return;
+    void apiRequest<{ user: AuthUser }>("/auth/me")
+      .then(({ user }) => {
+        localStorage.setItem("cvforge-auth-user", JSON.stringify(user));
+        setAuth(user);
+      })
+      .catch(() => {
+        localStorage.removeItem("cvforge-auth-token");
+        localStorage.removeItem("cvforge-auth-user");
+        setAuth(null);
+        setPage("login");
+      });
+  }, []);
+  useEffect(() => {
+    if (!auth) return;
+    void apiRequest<{ document: CVData }[]>("/cvs")
       .then((records) => {
         if (!records[0]?.document) return;
         const remoteCV = hydrateCV(records[0].document);
@@ -313,26 +374,44 @@ function App() {
         localStorage.setItem("cvforge-doc", JSON.stringify(remoteCV));
       })
       .catch(() => {});
-  }, []);
-  useEffect(() => {
-    try {
-      const savedTemplates = JSON.parse(localStorage.getItem("cvforge-custom-templates") || "[]");
-      if (Array.isArray(savedTemplates)) setCustomTemplates(savedTemplates);
-    } catch {}
-    void apiRequest<Template[]>(`/templates?ownerKey=${encodeURIComponent(getOwnerKey())}`)
+    void apiRequest<Template[]>("/templates")
       .then((templates) => {
-        if (!templates.length) return;
         setCustomTemplates(templates);
         localStorage.setItem("cvforge-custom-templates", JSON.stringify(templates));
       })
       .catch(() => {});
-  }, []);
+  }, [auth]);
   const notify = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(""), 2600);
   };
+  const completeAuth = (session: { token: string; user: AuthUser }) => {
+    localStorage.setItem("cvforge-auth-token", session.token);
+    localStorage.setItem("cvforge-auth-user", JSON.stringify(session.user));
+    setAuth(session.user);
+    setPage("dashboard");
+    notify(`Welcome${session.user.role === "admin" ? " back, admin" : ""}.`);
+  };
+  const logout = () => {
+    localStorage.removeItem("cvforge-auth-token");
+    localStorage.removeItem("cvforge-auth-user");
+    setAuth(null);
+    setPage("home");
+    notify("You have been logged out.");
+  };
+  const goToPage = (nextPage: string) => {
+    if (nextPage === "admin" && auth?.role !== "admin") {
+      setPage(auth ? "dashboard" : "login");
+      notify("Admin access is restricted to administrator accounts.");
+      return;
+    }
+    setPage(nextPage);
+  };
+  useEffect(() => {
+    if (page === "admin" && auth?.role !== "admin") setPage(auth ? "dashboard" : "login");
+  }, [page, auth]);
   const choose = (template: Template) => {
-    setCV((p) => ({ ...p, template: template.design ? "custom" : template.id, design: template.design ?? p.design }));
+    setCV((p) => ({ ...p, template: template.style, templateConfig: template, design: { ...p.design, ...(template.design ?? {}) } }));
     setPage("builder");
     notify("Template selected — your information is preserved.");
   };
@@ -345,17 +424,19 @@ function App() {
       localStorage.setItem("cvforge-custom-templates", JSON.stringify(next));
       return next;
     });
+    if (!auth) { notify("Custom template saved locally. Log in to sync it."); return; }
     void apiRequest(`/templates/${encodeURIComponent(template.id)}`, {
       method: "PUT",
-      body: JSON.stringify({ ownerKey: getOwnerKey(), template }),
+      body: JSON.stringify({ template }),
     }).then(() => notify("Custom template saved to MongoDB.")).catch(() => notify("Custom template saved locally — MongoDB is unavailable."));
   };
   const save = async () => {
     localStorage.setItem("cvforge-doc", JSON.stringify(cv));
+    if (!auth) { notify("CV saved locally. Log in to sync it to MongoDB."); return; }
     try {
       await apiRequest(`/cvs/${encodeURIComponent(cv.id)}`, {
         method: "PUT",
-        body: JSON.stringify({ ownerKey: getOwnerKey(), document: cv }),
+        body: JSON.stringify({ document: cv }),
       });
       notify("CV saved to MongoDB.");
     } catch {
@@ -372,20 +453,21 @@ function App() {
           {nav.slice(0, 2).map((n) => (
             <button
               className={page === n.id ? "active" : ""}
-              onClick={() => setPage(n.id)}
+              onClick={() => goToPage(n.id)}
               key={n.id}
             >
               {n.label}
             </button>
           ))}
-          <button onClick={() => setPage("builder")}>How it works</button>
-          <button onClick={() => setPage("home")}>Pricing</button>
+          <button onClick={() => goToPage("builder")}>How it works</button>
+          <button onClick={() => goToPage("home")}>Pricing</button>
+          {auth?.role === "admin" && <button className={page === "admin" ? "active" : ""} onClick={() => goToPage("admin")}>Admin</button>}
         </nav>
         <div className="top-actions">
-          <button className="login">Log in</button>
+          {auth ? <button className="login" onClick={logout}>{auth.role === "admin" ? "Admin" : auth.email.split("@")[0]} · Log out</button> : <button className="login" onClick={() => setPage("login")}>Log in</button>}
           <button
             className="primary small"
-            onClick={() => setPage("templates")}
+            onClick={() => goToPage("templates")}
           >
             Create CV <ArrowRight size={15} />
           </button>
@@ -399,7 +481,7 @@ function App() {
           {nav.map((n) => (
             <button
               onClick={() => {
-                setPage(n.id);
+                goToPage(n.id);
                 setMobile(false);
               }}
               key={n.id}
@@ -410,13 +492,15 @@ function App() {
         </div>
       )}
       {page === "home" && <Home go={setPage} />}{" "}
-      {page === "templates" && <Templates cv={cv} templates={[...templates, ...customTemplates]} choose={choose} />}{" "}
+      {page === "templates" && <Templates cv={cv} templates={[...systemTemplates, ...customTemplates]} choose={choose} />}{" "}
       {page === "builder" && (
         <Builder cv={cv} setCV={setCV} save={save} notify={notify} saveCustomTemplate={saveCustomTemplate} />
       )}{" "}
-      {page === "dashboard" && <Dashboard cv={cv} go={setPage} save={save} />}{" "}
+      {page === "dashboard" && <Dashboard cv={cv} go={setPage} save={save} auth={auth} />}{" "}
       {page === "ats" && <ATS cv={cv} />}{" "}
       {page === "cover" && <Cover cv={cv} notify={notify} />}
+      {page === "login" && <AuthPage onComplete={completeAuth} />}
+      {page === "admin" && auth?.role === "admin" && <AdminPage notify={notify} auth={auth} />}
       {toast && (
         <div className="toast">
           <CircleCheck size={18} />
@@ -467,7 +551,7 @@ function Home({ go }: { go: (v: string) => void }) {
         </div>
         <MiniCV />
         <div className="floating-note bottom">
-          <span className="score">92</span>
+          <span className="score">✓</span>
           <span>
             <b>ATS ready</b>
             <small>Excellent match score</small>
@@ -476,12 +560,11 @@ function Home({ go }: { go: (v: string) => void }) {
         </div>
       </section>
       <section className="proof">
-        <span>Trusted by ambitious professionals at</span>
-        <b>stripe</b>
-        <b>airbnb</b>
-        <b>notion</b>
-        <b>Google</b>
-        <b>shopify</b>
+        <span>Built for focused, modern job applications</span>
+        <b>Clear</b>
+        <b>Professional</b>
+        <b>Flexible</b>
+        <b>Private</b>
       </section>
       <section className="features">
         <div>
@@ -530,27 +613,147 @@ function Feature({
     </article>
   );
 }
+
+function AuthPage({ onComplete }: { onComplete: (session: { token: string; user: AuthUser }) => void }) {
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (loading) return;
+    setError(""); setLoading(true);
+    try {
+      const session = await apiRequest<{ token: string; user: AuthUser }>(`/auth/${mode}`, { method: "POST", body: JSON.stringify({ email: email.trim().toLowerCase(), password }) });
+      onComplete(session);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Something went wrong. Please try again.");
+    } finally { setLoading(false); }
+  };
+  return <main className="auth-page"><section className="auth-panel"><div className="auth-brand"><span>✦</span> CVForge</div><span className="eyebrow">{mode === "login" ? "WELCOME BACK" : "START FOR FREE"}</span><h1>{mode === "login" ? "Good to see you." : "Create your account."}</h1><p>{mode === "login" ? "Sign in to save your CVs and custom templates securely." : "Your CVs and saved designs will be available whenever you return."}</p><form onSubmit={submit}><label className="field"><span>Email address</span><input type="email" name="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required disabled={loading} /></label><label className="field"><span>Password</span><input type="password" name="password" autoComplete={mode === "register" ? "new-password" : "current-password"} disabled={loading} value={password} minLength={8} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" required /></label>{error && <div className="auth-error" role="alert">{error}</div>}<button className="primary auth-submit" disabled={loading}>{loading ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}<ArrowRight size={16} /></button></form><button className="auth-switch" disabled={loading} onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); }}>{mode === "login" ? "New to CVForge? Create an account" : "Already have an account? Log in"}</button></section><aside className="auth-aside"><span className="eyebrow">YOUR WORK, YOURS</span><h2>Build it once.<br/><em>Take it anywhere.</em></h2><div><CircleCheck size={18}/><span><b>Private account storage</b><small>Your CVs are saved to your account.</small></span></div><div><CircleCheck size={18}/><span><b>Custom templates</b><small>Keep the visual styles you create.</small></span></div></aside></main>;
+}
+
+function AdminPage({ notify, auth }: { notify: (message: string) => void; auth: AuthUser }) {
+  const [overview, setOverview] = useState<{ userCount: number; cvCount: number; customTemplateCount: number; systemTemplateCount: number } | null>(null);
+  const [users, setUsers] = useState<{ id: string; email: string; role: string; createdAt: string }[]>([]);
+  const [documents, setDocuments] = useState<{ id: string; title: string; owner: string; updatedAt: string }[]>([]);
+  const [templateRecords, setTemplateRecords] = useState<Template[]>([]);
+  const [draftTemplate, setDraftTemplate] = useState<Template>(newSystemTemplateDraft);
+  const load = () => Promise.all([
+    apiRequest<{ userCount: number; cvCount: number; customTemplateCount: number; systemTemplateCount: number }>("/admin/overview"),
+    apiRequest<{ id: string; email: string; role: string; createdAt: string }[]>("/admin/users"),
+    apiRequest<{ id: string; title: string; owner: string; updatedAt: string }[]>("/admin/cvs"),
+    apiRequest<Template[]>("/admin/system-templates"),
+  ]).then(([stats, accountRecords, cvRecords, templateData]) => { setOverview(stats); setUsers(accountRecords); setDocuments(cvRecords); setTemplateRecords(templateData); }).catch(() => notify("Could not load admin data."));
+  useEffect(() => { void load(); }, []);
+  const saveTemplate = async (template: Template) => {
+    try { await apiRequest(`/admin/system-templates/${encodeURIComponent(template.id)}`, { method: "PUT", body: JSON.stringify({ template }) }); notify("System template updated."); }
+    catch { notify("Could not update the template."); }
+  };
+  const saveDesignedTemplate = async (status: "draft" | "published") => {
+    if (!draftTemplate.name.trim()) { notify("Add a name for the new template."); return; }
+    const template: Template = {
+      ...draftTemplate,
+      id: draftTemplate.id || `admin-${Date.now().toString(36)}-${uid()}`,
+      name: draftTemplate.name.trim(),
+      description: draftTemplate.description.trim() || "A new CVForge template.",
+      status,
+      version: draftTemplate.version ?? 1,
+    };
+    try {
+      const saved = await apiRequest<Template>(`/admin/system-templates/${encodeURIComponent(template.id)}`, { method: "PUT", body: JSON.stringify({ template }) });
+      setTemplateRecords((items) => items.some((item) => item.id === saved.id) ? items.map((item) => item.id === saved.id ? saved : item) : [...items, saved]);
+      setDraftTemplate(saved);
+      notify(status === "published" ? "Template published for users." : "Template saved as a private draft.");
+      void load();
+    } catch { notify("Could not save the template."); }
+  };
+  const duplicateTemplate = (source: Template) => setDraftTemplate({ ...newSystemTemplateDraft(), ...source, id: "", name: `${source.name} copy`, status: "draft", version: (source.version ?? 1) + 1, design: { ...newSystemTemplateDraft().design!, ...(source.design ?? {}) }, sections: [...(source.sections ?? initialCV.sections)], sidebarSections: [...(source.sidebarSections ?? [])], sectionLabels: { ...(source.sectionLabels ?? {}) } });
+  const deleteDocument = async (id: string) => {
+    if (!window.confirm("Delete this CV permanently?")) return;
+    try { await apiRequest(`/admin/cvs/${id}`, { method: "DELETE" }); setDocuments((items) => items.filter((item) => item.id !== id)); notify("CV deleted."); }
+    catch { notify("Could not delete the CV."); }
+  };
+  const updateUserRole = async (id: string, role: "admin" | "user") => {
+    try {
+      const updated = await apiRequest<{ id: string; email: string; role: string; createdAt: string }>(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify({ role }) });
+      setUsers((items) => items.map((user) => user.id === id ? updated : user));
+      notify("Account role updated.");
+    } catch { notify("Could not update the account role."); }
+  };
+  const deleteUser = async (id: string, email: string) => {
+    if (!window.confirm(`Delete ${email} and all of their saved CVs and custom templates?`)) return;
+    try {
+      await apiRequest(`/admin/users/${id}`, { method: "DELETE" });
+      setUsers((items) => items.filter((user) => user.id !== id));
+      setDocuments((items) => items.filter((document) => document.owner !== email));
+      notify("Account and its saved data deleted.");
+      void load();
+    } catch { notify("Could not delete the account."); }
+  };
+  return <main className="admin-page">
+    <div className="admin-heading"><div><span className="eyebrow">ADMIN CONSOLE</span><h1>Manage CVForge data.</h1><p>Users, saved CVs, and template records are managed from MongoDB.</p></div><button className="secondary compact" onClick={() => void load()}>Refresh</button></div>
+    <div className="admin-stats"><article><b>{overview?.userCount ?? "—"}</b><span>Accounts</span></article><article><b>{overview?.cvCount ?? "—"}</b><span>CV documents</span></article><article><b>{overview?.customTemplateCount ?? "—"}</b><span>Custom templates</span></article><article><b>{overview?.systemTemplateCount ?? "—"}</b><span>System templates</span></article></div>
+    <section className="admin-section template-designer">
+      <div className="admin-section-title"><h2>Template designer</h2><p>Create a new template with a layout, visual style, and ATS setting. Publishing makes it available to all users.</p></div>
+      <div className="template-designer-grid">
+        <div className="template-designer-controls">
+          <div className="fields two"><Input label="Template name" value={draftTemplate.name} onChange={(name) => setDraftTemplate((draft) => ({ ...draft, name }))} placeholder="e.g. Horizon" /><Input label="Category" value={draftTemplate.category} onChange={(category) => setDraftTemplate((draft) => ({ ...draft, category }))} placeholder="e.g. Professional" /></div>
+          <label className="field"><span>Start from an existing template</span><select defaultValue="" onChange={(event) => { const source = templateRecords.find((item) => item.id === event.target.value); if (source) duplicateTemplate(source); event.currentTarget.value = ""; }}><option value="">Blank designer</option>{templateRecords.map((template) => <option value={template.id} key={template.id}>{template.name} · v{template.version ?? 1}</option>)}</select></label>
+          <Input label="Short description" value={draftTemplate.description} onChange={(description) => setDraftTemplate((draft) => ({ ...draft, description }))} placeholder="What makes this template useful?" />
+          <div className="fields two"><label className="field"><span>Layout</span><select value={draftTemplate.style} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, style: event.target.value }))}>{adminTemplateLayouts.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label className="designer-toggle"><input type="checkbox" checked={Boolean(draftTemplate.ats)} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, ats: event.target.checked }))} /> ATS-friendly</label></div>
+          <div className="designer-style-row"><label className="field"><span>Accent color</span><input className="designer-color" type="color" value={draftTemplate.design?.accent ?? "#514ed0"} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, design: { ...(draft.design ?? newSystemTemplateDraft().design!), accent: event.target.value } }))} /></label><label className="field"><span>Font family</span><select value={draftTemplate.design?.font ?? "Inter"} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, design: { ...(draft.design ?? newSystemTemplateDraft().design!), font: event.target.value } }))}><option>Inter</option><option>Roboto</option><option>Open Sans</option><option>Lato</option><option>Poppins</option><option>Merriweather</option></select></label></div>
+          <div className="designer-ranges"><label>Section spacing <b>{(draftTemplate.design?.spacing ?? 1).toFixed(1)}x</b><input type="range" min="0.7" max="1.5" step="0.1" value={draftTemplate.design?.spacing ?? 1} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, design: { ...(draft.design ?? newSystemTemplateDraft().design!), spacing: +event.target.value } }))} /></label><label>Body size <b>{draftTemplate.design?.bodyFontSize ?? 11}px</b><input type="range" min="9" max="14" step="1" value={draftTemplate.design?.bodyFontSize ?? 11} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, design: { ...(draft.design ?? newSystemTemplateDraft().design!), bodyFontSize: +event.target.value } }))} /></label><label>Name size <b>{draftTemplate.design?.nameFontSize ?? 28}px</b><input type="range" min="22" max="36" step="1" value={draftTemplate.design?.nameFontSize ?? 28} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, design: { ...(draft.design ?? newSystemTemplateDraft().design!), nameFontSize: +event.target.value } }))} /></label></div>
+          <div className="designer-advanced-grid"><label className="field"><span>Page size</span><select value={draftTemplate.pageSize} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, pageSize: event.target.value as "a4" | "letter" }))}><option value="a4">A4</option><option value="letter">US Letter</option></select></label><label className="field"><span>Page margin</span><select value={draftTemplate.pageMargin} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, pageMargin: +event.target.value }))}><option value="30">30 px</option><option value="42">42 px</option><option value="54">54 px</option></select></label><label className="field"><span>Content density</span><select value={draftTemplate.density} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, density: event.target.value as Template["density"] }))}><option value="compact">Compact</option><option value="standard">Standard</option><option value="relaxed">Relaxed</option></select></label><label className="field"><span>Structure</span><select value={draftTemplate.layout} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, layout: event.target.value as Template["layout"] }))}><option value="single">Single column</option><option value="two-column">Two columns</option></select></label><label className="field"><span>Sidebar position</span><select value={draftTemplate.sidebarPosition} disabled={draftTemplate.layout !== "two-column"} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, sidebarPosition: event.target.value as Template["sidebarPosition"] }))}><option value="left">Left</option><option value="right">Right</option></select></label><label className="field"><span>Sidebar width</span><select value={draftTemplate.sidebarWidth} disabled={draftTemplate.layout !== "two-column"} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, sidebarWidth: +event.target.value }))}><option value="28">28%</option><option value="32">32%</option><option value="36">36%</option></select></label></div>
+          <div className="designer-advanced-grid"><label className="field"><span>Header alignment</span><select value={draftTemplate.headerAlign} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, headerAlign: event.target.value as Template["headerAlign"] }))}><option value="left">Left</option><option value="center">Center</option></select></label><label className="field"><span>Photo shape</span><select value={draftTemplate.photoShape} disabled={!draftTemplate.showPhoto} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, photoShape: event.target.value as Template["photoShape"] }))}><option value="circle">Circle</option><option value="rounded">Rounded</option><option value="square">Square</option></select></label><label className="designer-toggle"><input type="checkbox" checked={draftTemplate.showPhoto !== false} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, showPhoto: event.target.checked }))} /> Show profile photo</label><label className="field"><span>Divider</span><select value={draftTemplate.divider} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, divider: event.target.value as Template["divider"] }))}><option value="line">Line</option><option value="accent">Accent</option><option value="none">None</option></select></label><label className="field"><span>Skills</span><select value={draftTemplate.skillStyle} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, skillStyle: event.target.value as Template["skillStyle"] }))}><option value="chips">Chips</option><option value="plain">Plain text</option><option value="bars">Bars</option></select></label><label className="field"><span>Contact details</span><select value={draftTemplate.contactStyle} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, contactStyle: event.target.value as Template["contactStyle"] }))}><option value="inline">Inline</option><option value="stacked">Stacked</option></select></label></div>
+          <TemplateSectionTools template={draftTemplate} onChange={setDraftTemplate} />
+          <div className="designer-actions"><button className="secondary" onClick={() => void saveDesignedTemplate("draft")}><Save size={16}/> Save draft</button><button className="primary" onClick={() => void saveDesignedTemplate("published")}><Check size={16}/> Publish template</button><button className="text-button" onClick={() => setDraftTemplate(newSystemTemplateDraft())}>New blank template</button></div>
+        </div>
+        <div className="designer-live-preview"><span>LIVE PREVIEW</span><TemplateThumb cv={initialCV} template={draftTemplate} /><strong>{draftTemplate.name || "Untitled template"}</strong><small>{draftTemplate.description || "Add a description for this template."}</small></div>
+      </div>
+    </section>
+    <section className="admin-section"><div className="admin-section-title"><h2>System templates</h2><p>Changes update the database catalog immediately.</p></div><div className="admin-template-grid">{templateRecords.map((template) => <article key={template.id}><TemplateThumb cv={initialCV} template={template} /><label className="field"><span>Template name</span><input value={template.name} onChange={(event) => setTemplateRecords((items) => items.map((item) => item.id === template.id ? { ...item, name: event.target.value } : item))} /></label><label className="field"><span>Description</span><input value={template.description} onChange={(event) => setTemplateRecords((items) => items.map((item) => item.id === template.id ? { ...item, description: event.target.value } : item))} /></label><button className="secondary compact" onClick={() => void saveTemplate(template)}><Save size={14}/> Save template</button></article>)}</div></section>
+    <section className="admin-section"><div className="admin-section-title"><h2>Saved CVs</h2><p>Most recent 100 account documents.</p></div><div className="admin-table">{documents.length ? documents.map((document) => <div key={document.id}><span><b>{document.title}</b><small>{document.owner}</small></span><time>{new Date(document.updatedAt).toLocaleString()}</time><button onClick={() => void deleteDocument(document.id)}><Trash2 size={15}/></button></div>) : <p>No saved CVs yet.</p>}</div></section>
+    <section className="admin-section"><div className="admin-section-title"><h2>Accounts</h2><p>Manage access roles. Passwords are hashed and never displayed.</p></div><div className="admin-table">{users.map((user) => <div key={user.id}><span><b>{user.email}</b><small>Joined {new Date(user.createdAt).toLocaleDateString()}</small></span><select className="admin-role-select" aria-label={`Role for ${user.email}`} value={user.role} disabled={user.id === auth.id} onChange={(event) => void updateUserRole(user.id, event.target.value as "admin" | "user")}><option value="user">User</option><option value="admin">Admin</option></select>{user.id === auth.id ? <small className="admin-current-account">Current account</small> : <button className="admin-delete-user" aria-label={`Delete ${user.email}`} onClick={() => void deleteUser(user.id, user.email)}><Trash2 size={15}/></button>}</div>)}</div></section>
+  </main>;
+}
+
+function TemplateSectionTools({ template, onChange }: { template: Template; onChange: React.Dispatch<React.SetStateAction<Template>> }) {
+  const sections = template.sections ?? initialCV.sections;
+  const sidebar = template.sidebarSections ?? [];
+  const move = (index: number, direction: -1 | 1) => {
+    const next = [...sections];
+    const target = index + direction;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange((draft) => ({ ...draft, sections: next }));
+  };
+  const toggle = (section: string) => onChange((draft) => ({ ...draft, sections: sections.includes(section) ? sections.filter((item) => item !== section) : [...sections, section] }));
+  return <section className="designer-sections"><div><h3>Section structure</h3><p>Choose the sections that appear, set their order, and rename headings.</p></div><div className="designer-section-list">{initialCV.sections.map((section) => { const index = sections.indexOf(section); const enabled = index >= 0; return <div key={section} className={!enabled ? "is-disabled" : ""}><label><input type="checkbox" checked={enabled} onChange={() => toggle(section)} /><span>{sectionTitles[section]}</span></label>{enabled && <><input aria-label={`${sectionTitles[section]} heading`} value={template.sectionLabels?.[section] ?? ""} placeholder="Default heading" onChange={(event) => onChange((draft) => ({ ...draft, sectionLabels: { ...(draft.sectionLabels ?? {}), [section]: event.target.value } }))} /><label className="sidebar-section"><input type="checkbox" checked={sidebar.includes(section)} disabled={template.layout !== "two-column"} onChange={() => onChange((draft) => ({ ...draft, sidebarSections: sidebar.includes(section) ? sidebar.filter((item) => item !== section) : [...sidebar, section] }))} /> Side</label><button aria-label={`Move ${sectionTitles[section]} up`} onClick={() => move(index, -1)} disabled={!index}>↑</button><button aria-label={`Move ${sectionTitles[section]} down`} onClick={() => move(index, 1)} disabled={index === sections.length - 1}>↓</button></>}</div>; })}</div></section>;
+}
+
 function MiniCV() {
   return (
     <div className="mini-cv">
       <div className="mini-head">
         <div className="avatar">AM</div>
         <div>
-          <b>Alex Morgan</b>
-          <small>Product Designer</small>
+          <b>Your name</b>
+          <small>Your professional title</small>
         </div>
       </div>
       <div className="mini-rule" />
       <b className="mini-label">EXPERIENCE</b>
       <div className="mini-job">
-        <b>Senior Product Designer</b>
-        <small>Northstar Labs · 2021—Present</small>
+        <b>Most recent role</b>
+        <small>Company · Dates</small>
         <p></p>
         <p></p>
       </div>
       <div className="mini-job">
-        <b>Product Designer</b>
-        <small>Inkwell · 2018—2021</small>
+        <b>Previous role</b>
+        <small>Company · Dates</small>
         <p></p>
       </div>
       <b className="mini-label">SKILLS</b>
@@ -628,7 +831,7 @@ function Templates({
               <X />
             </button>
             <div className="modal-cv" style={{ "--accent": preview.design?.accent ?? cv.design.accent, "--cv-font": preview.design?.font ?? cv.design.font, "--space": preview.design?.spacing ?? cv.design.spacing, "--body-font-size": `${preview.design?.bodyFontSize ?? cv.design.bodyFontSize}px`, "--name-font-size": `${preview.design?.nameFontSize ?? cv.design.nameFontSize}px` } as React.CSSProperties}>
-              <CVPreview cv={{ ...cv, template: preview.design ? "custom" : preview.id, design: preview.design ?? cv.design }} />
+              <CVPreview cv={{ ...cv, template: preview.style, design: preview.design ?? cv.design }} template={preview} />
             </div>
             <div>
               <span className="eyebrow">{preview.category} TEMPLATE</span>
@@ -743,10 +946,21 @@ function Builder({
       cv.experience.map((x) => (x.id === id ? { ...x, [key]: value } : x)),
     );
   const reorder = (from: number, to: number) => {
+    if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 || from >= cv.sections.length || to >= cv.sections.length) return;
     const a = [...cv.sections];
     const [item] = a.splice(from, 1);
     a.splice(to, 0, item);
     update("sections", a);
+  };
+  const toggleSection = (section: string) => {
+    const enabled = cv.sections.includes(section);
+    setCV((document) => ({
+      ...document,
+      sections: document.sections.includes(section)
+        ? document.sections.filter((item) => item !== section)
+        : [...document.sections, section],
+    }));
+    if (enabled && open === section) setOpen("personal");
   };
   useEffect(() => {
     const previewArea = previewAreaRef.current;
@@ -832,6 +1046,19 @@ function Builder({
               <MoreHorizontal size={18} />
             </button>
           </div>
+          <fieldset className="cv-section-picker" aria-describedby="cv-section-help">
+            <legend>Choose your sections</legend>
+            <p id="cv-section-help">Select what to include in your CV. Hidden sections keep their content so you can add them back anytime.</p>
+            <div className="cv-section-options">
+              {initialCV.sections.map((section) => (
+                <label key={section} className={cv.sections.includes(section) ? "is-selected" : ""}>
+                  <input type="checkbox" checked={cv.sections.includes(section)} onChange={() => toggleSection(section)} />
+                  <span>{sectionTitles[section]}</span>
+                </label>
+              ))}
+            </div>
+            <p className="cv-section-count" aria-live="polite">{cv.sections.length} of {initialCV.sections.length} sections selected · Personal information is always included.</p>
+          </fieldset>
           <Accordion
             title="Personal information"
             open={open === "personal"}
@@ -882,7 +1109,7 @@ function Builder({
           </Accordion>
           <Accordion
             title="Professional summary"
-            open={open === "summary"}
+            visible={cv.sections.includes("summary")} open={open === "summary"}
             onClick={() => setOpen(open === "summary" ? "" : "summary")}
           >
             <textarea
@@ -906,7 +1133,7 @@ function Builder({
           </Accordion>
           <Accordion
             title={`Work experience (${cv.experience.length})`}
-            open={open === "experience"}
+            visible={cv.sections.includes("experience")} open={open === "experience"}
             onClick={() => setOpen(open === "experience" ? "" : "experience")}
           >
             <div>
@@ -954,7 +1181,7 @@ function Builder({
           </Accordion>
           <Accordion
             title={`Education (${cv.education.length})`}
-            open={open === "education"}
+            visible={cv.sections.includes("education")} open={open === "education"}
             onClick={() => setOpen(open === "education" ? "" : "education")}
           >
             <div>
@@ -996,7 +1223,7 @@ function Builder({
           </Accordion>
           <Accordion
             title="Skills"
-            open={open === "skills"}
+            visible={cv.sections.includes("skills")} open={open === "skills"}
             onClick={() => setOpen(open === "skills" ? "" : "skills")}
           >
             <div className="skill-editor">
@@ -1029,7 +1256,7 @@ function Builder({
               }}
             />
           </Accordion>
-          <Accordion title={`Projects (${cv.projects.length})`} open={open === "projects"} onClick={() => setOpen(open === "projects" ? "" : "projects")}>
+          <Accordion title={`Projects (${cv.projects.length})`} visible={cv.sections.includes("projects")} open={open === "projects"} onClick={() => setOpen(open === "projects" ? "" : "projects")}>
             <Repeater items={cv.projects} onChange={(items) => update("projects", items)} addLabel="Add project" newItem={() => ({ id: uid(), name: "New project", description: "Describe what you built and the impact it created.", tech: "", url: "", github: "" })} itemLabel={(item) => item.name || "Untitled project"}>
               {(item, change) => <>
                 <Input label="Project name" value={item.name} onChange={(name) => change({ name })} />
@@ -1039,27 +1266,27 @@ function Builder({
               </>}
             </Repeater>
           </Accordion>
-          <Accordion title={`Certifications (${cv.certifications.length})`} open={open === "certifications"} onClick={() => setOpen(open === "certifications" ? "" : "certifications")}>
+          <Accordion title={`Certifications (${cv.certifications.length})`} visible={cv.sections.includes("certifications")} open={open === "certifications"} onClick={() => setOpen(open === "certifications" ? "" : "certifications")}>
             <Repeater items={cv.certifications} onChange={(items) => update("certifications", items)} addLabel="Add certification" newItem={() => ({ id: uid(), name: "New certification", organization: "Issuing organization", date: "", url: "" })} itemLabel={(item) => item.name || "Untitled certification"}>
               {(item, change) => <><Input label="Certification name" value={item.name} onChange={(name) => change({ name })} /><div className="fields two"><Input label="Organization" value={item.organization} onChange={(organization) => change({ organization })} /><Input label="Issue date" value={item.date} onChange={(date) => change({ date })} /></div><Input label="Credential URL" value={item.url} onChange={(url) => change({ url })} /></>}
             </Repeater>
           </Accordion>
-          <Accordion title={`Languages (${cv.languages.length})`} open={open === "languages"} onClick={() => setOpen(open === "languages" ? "" : "languages")}>
+          <Accordion title={`Languages (${cv.languages.length})`} visible={cv.sections.includes("languages")} open={open === "languages"} onClick={() => setOpen(open === "languages" ? "" : "languages")}>
             <Repeater items={cv.languages} onChange={(items) => update("languages", items)} addLabel="Add language" newItem={() => ({ id: uid(), language: "New language", proficiency: "Intermediate" })} itemLabel={(item) => item.language || "Untitled language"}>
               {(item, change) => <div className="fields two"><Input label="Language" value={item.language} onChange={(language) => change({ language })} /><label className="field"><span>Proficiency</span><select value={item.proficiency} onChange={(e) => change({ proficiency: e.target.value })}><option>Beginner</option><option>Intermediate</option><option>Advanced</option><option>Fluent</option><option>Native</option></select></label></div>}
             </Repeater>
           </Accordion>
-          <Accordion title={`Achievements (${cv.achievements.length})`} open={open === "achievements"} onClick={() => setOpen(open === "achievements" ? "" : "achievements")}>
+          <Accordion title={`Achievements (${cv.achievements.length})`} visible={cv.sections.includes("achievements")} open={open === "achievements"} onClick={() => setOpen(open === "achievements" ? "" : "achievements")}>
             <Repeater items={cv.achievements} onChange={(items) => update("achievements", items)} addLabel="Add achievement" newItem={() => ({ id: uid(), text: "New achievement" })} itemLabel={(item) => item.text || "Untitled achievement"}>
               {(item, change) => <textarea value={item.text} onChange={(e) => change({ text: e.target.value })} placeholder="Describe the achievement" />}
             </Repeater>
           </Accordion>
-          <Accordion title={`Volunteer experience (${cv.volunteer.length})`} open={open === "volunteer"} onClick={() => setOpen(open === "volunteer" ? "" : "volunteer")}>
+          <Accordion title={`Volunteer experience (${cv.volunteer.length})`} visible={cv.sections.includes("volunteer")} open={open === "volunteer"} onClick={() => setOpen(open === "volunteer" ? "" : "volunteer")}>
             <Repeater items={cv.volunteer} onChange={(items) => update("volunteer", items)} addLabel="Add volunteer role" newItem={() => ({ id: uid(), role: "New volunteer role", organization: "Organization", location: "", start: "", end: "", description: "" })} itemLabel={(item) => item.role || "Untitled volunteer role"}>
               {(item, change) => <><Input label="Role" value={item.role} onChange={(role) => change({ role })} /><div className="fields two"><Input label="Organization" value={item.organization} onChange={(organization) => change({ organization })} /><Input label="Location" value={item.location} onChange={(location) => change({ location })} /></div><div className="fields two"><Input label="Start date" value={item.start} onChange={(start) => change({ start })} /><Input label="End date" value={item.end} onChange={(end) => change({ end })} /></div><textarea value={item.description} onChange={(e) => change({ description: e.target.value })} placeholder="Describe your contribution" /></>}
             </Repeater>
           </Accordion>
-          <Accordion title={`References (${cv.references.length})`} open={open === "references"} onClick={() => setOpen(open === "references" ? "" : "references")}>
+          <Accordion title={`References (${cv.references.length})`} visible={cv.sections.includes("references")} open={open === "references"} onClick={() => setOpen(open === "references" ? "" : "references")}>
             <Repeater items={cv.references} onChange={(items) => update("references", items)} addLabel="Add reference" newItem={() => ({ id: uid(), name: "New reference", relationship: "", email: "", phone: "" })} itemLabel={(item) => item.name || "Untitled reference"}>
               {(item, change) => <><Input label="Full name" value={item.name} onChange={(name) => change({ name })} /><Input label="Relationship / title" value={item.relationship} onChange={(relationship) => change({ relationship })} /><div className="fields two"><Input label="Email" value={item.email} onChange={(email) => change({ email })} /><Input label="Phone" value={item.phone} onChange={(phone) => change({ phone })} /></div></>}
             </Repeater>
@@ -1202,10 +1429,11 @@ function Builder({
               >
                 <GripVertical size={15} />
                 <span>{sectionTitles[s]}</span>
-                <button disabled={!i} onClick={() => reorder(i, i - 1)}>
+                <button aria-label={`Move ${sectionTitles[s]} up`} disabled={!i} onClick={() => reorder(i, i - 1)}>
                   <ChevronUp size={14} />
                 </button>
                 <button
+                  aria-label={`Move ${sectionTitles[s]} down`}
                   disabled={i === cv.sections.length - 1}
                   onClick={() => reorder(i, i + 1)}
                 >
@@ -1214,7 +1442,7 @@ function Builder({
               </div>
             ))}
           </div>
-          <p className="hint">Drag sections to reorder.</p>
+          <p className="hint">{cv.sections.length ? "Drag sections or use the arrows to reorder." : "Select sections in the editor to add them to your CV."}</p>
         </aside>
       </div>
     </main>
@@ -1223,17 +1451,20 @@ function Builder({
 function Accordion({
   title,
   open,
+  visible = true,
   onClick,
   children,
 }: {
   title: string;
   open: boolean;
+  visible?: boolean;
   onClick: () => void;
   children: React.ReactNode;
 }) {
+  if (!visible) return null;
   return (
     <section className="accordion">
-      <button className="accordion-title" onClick={onClick}>
+      <button className="accordion-title" aria-expanded={open} onClick={onClick}>
         <span>{title}</span>
         {open ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
       </button>
@@ -1283,40 +1514,25 @@ function Repeater<T extends { id: string }>({
   </>;
 }
 
-function CVPreview({ cv }: { cv: CVData }) {
-  const t = templates.find((x) => x.id === cv.template)!;
+function CVPreview({ cv, template }: { cv: CVData; template?: Template }) {
+  const t = template ?? cv.templateConfig ?? templates.find((x) => x.id === cv.template || x.style === cv.template) ?? templates[0];
+  const activeSections = template ? template.sections ?? cv.sections : cv.sections;
+  const sidebarSections = t.sidebarSections?.length ? t.sidebarSections : ["skills", "languages", "certifications"];
+  const showPhoto = t.showPhoto !== false;
+  const isTwoColumn = t.layout === "two-column" || t.style === "twocolumn";
+  const documentStyle = { "--page-margin": `${t.pageMargin ?? 54}px`, "--cv-background": t.design?.background ?? "#ffffff", "--secondary-accent": t.design?.secondaryAccent ?? "#697386", "--cv-heading-font": t.design?.headingFont ?? t.design?.font ?? "Inter", "--sidebar-width": `${t.sidebarWidth ?? 37}%` } as React.CSSProperties;
+  const classes = `${isTwoColumn ? "cv-twocolumn" : `cv-${t.style}`} header-${t.headerAlign ?? "left"} photo-${t.photoShape ?? "circle"} divider-${t.divider ?? "line"} skills-${t.skillStyle ?? "chips"} contact-${t.contactStyle ?? "inline"} density-${t.density ?? "standard"} ${t.sidebarPosition === "right" ? "sidebar-right" : ""}`;
   const contact = [cv.email, cv.phone, cv.location, cv.website].filter(Boolean);
-  const photo = <div className="cv-photo-slot" aria-label="Profile photo">{cv.photo ? <img src={cv.photo} alt={`${cv.fullName}'s profile`} /> : <span>{cv.fullName.split(" ").map((part) => part[0]).join("")}</span>}</div>;
-  if (t.style === "twocolumn") {
-    const rail = ["skills", "languages", "certifications"];
-    return <article className="cv-document cv-twocolumn">
-      <aside className="cv-side-rail">{photo}<h1>{cv.fullName}</h1><h2>{cv.title}</h2><div className="contact">{contact.map((item) => <span key={item}>{item}</span>)}</div>{cv.sections.filter((section) => rail.includes(section)).map((section) => <CVSection key={section} type={section} cv={cv} />)}</aside>
-      <main className="cv-main-column">{cv.sections.filter((section) => !rail.includes(section)).map((section) => <CVSection key={section} type={section} cv={cv} />)}</main>
-    </article>;
+  const photo = showPhoto ? <div className="cv-photo-slot" aria-label="Profile photo">{cv.photo ? <img src={cv.photo} alt={`${cv.fullName}'s profile`} /> : <span>{cv.fullName.split(" ").map((part) => part[0]).join("")}</span>}</div> : null;
+  if (isTwoColumn) {
+    const railContent = <aside className="cv-side-rail">{photo}<h1>{cv.fullName}</h1><h2>{cv.title}</h2><div className="contact">{contact.map((item) => <span key={item}>{item}</span>)}</div>{activeSections.filter((section) => sidebarSections.includes(section)).map((section) => <CVSection key={section} type={section} cv={cv} label={t.sectionLabels?.[section]} />)}</aside>;
+    const mainContent = <main className="cv-main-column">{activeSections.filter((section) => !sidebarSections.includes(section)).map((section) => <CVSection key={section} type={section} cv={cv} label={t.sectionLabels?.[section]} />)}</main>;
+    return <article className={`cv-document ${classes}`} style={documentStyle}>{t.sidebarPosition === "right" ? <>{mainContent}{railContent}</> : <>{railContent}{mainContent}</>}</article>;
   }
-  return (
-    <article className={"cv-document cv-" + t.style}>
-      <header className="cv-header">
-        <div>
-          <h1>{cv.fullName}</h1>
-          <h2>{cv.title}</h2>
-        </div>
-        {photo}
-        <div className="contact">
-          {contact.map((x) => (
-            <span key={x}>{x}</span>
-          ))}
-        </div>
-      </header>
-      <div className="cv-body">
-        {cv.sections.map((section) => (
-          <CVSection key={section} type={section} cv={cv} />
-        ))}
-      </div>
-    </article>
-  );
+  return <article className={`cv-document ${classes}`} style={documentStyle}><header className="cv-header"><div><h1>{cv.fullName}</h1><h2>{cv.title}</h2></div>{photo}<div className="contact">{contact.map((item) => <span key={item}>{item}</span>)}</div></header><div className="cv-body">{activeSections.map((section) => <CVSection key={section} type={section} cv={cv} label={t.sectionLabels?.[section]} />)}</div></article>;
 }
-function CVSection({ type, cv }: { type: string; cv: CVData }) {
+function CVSection({ type, cv, label }: { type: string; cv: CVData; label?: string }) {
+  const heading = label || sectionTitles[type];
   if (type === "summary")
     return (
       <section className="cv-section">
@@ -1393,17 +1609,25 @@ function Dashboard({
   cv,
   go,
   save,
+  auth,
 }: {
   cv: CVData;
   go: (s: string) => void;
   save: () => void;
+  auth: AuthUser | null;
 }) {
+  const [stats, setStats] = useState({ cvCount: 0, customTemplateCount: 0 });
+  useEffect(() => {
+    if (!auth) return;
+    void apiRequest<{ cvCount: number; customTemplateCount: number }>("/dashboard").then(setStats).catch(() => {});
+  }, [auth]);
+  const selectedTemplate = templates.find((template) => template.id === cv.template) ?? templates[0];
   return (
     <main className="dashboard">
       <div className="dash-welcome">
         <div>
           <span className="eyebrow">YOUR WORKSPACE</span>
-          <h1>Welcome back, Alex.</h1>
+          <h1>Welcome back{auth ? `, ${auth.email.split("@")[0]}` : ""}.</h1>
           <p>Make your next career move feel inevitable.</p>
         </div>
         <button className="primary" onClick={() => go("templates")}>
@@ -1413,18 +1637,18 @@ function Dashboard({
       <div className="dash-stats">
         <article>
           <FileText />
-          <b>1</b>
-          <span>CVs created</span>
+          <b>{stats.cvCount}</b>
+          <span>Saved CVs</span>
         </article>
         <article>
           <Sparkles />
-          <b>92</b>
-          <span>Latest ATS score</span>
+          <b>{stats.customTemplateCount}</b>
+          <span>Saved templates</span>
         </article>
         <article>
-          <Download />
-          <b>4</b>
-          <span>Total downloads</span>
+          <LayoutTemplate />
+          <b>{cv.sections.length}</b>
+          <span>Active sections</span>
         </article>
       </div>
       <div className="dash-section-head">
@@ -1440,14 +1664,13 @@ function Dashboard({
         <article className="cv-saved-card">
           <TemplateThumb
             cv={cv}
-            template={templates.find((t) => t.id === cv.template)!}
+            template={selectedTemplate}
           />
           <div>
             <span className="badge">Recently edited</span>
             <h3>{cv.name}</h3>
             <p>
-              Updated just now ·{" "}
-              {templates.find((t) => t.id === cv.template)?.name}
+              {auth ? "Synced to your account" : "Saved locally"} · {selectedTemplate.name}
             </p>
             <div>
               <button
@@ -1492,6 +1715,9 @@ function ATS({ cv }: { cv: CVData }) {
       cv.skills.some((s) => s.toLowerCase().includes(k)) ||
       cv.summary.toLowerCase().includes(k),
   );
+  const contactCount = [cv.fullName, cv.email, cv.phone, cv.location].filter(Boolean).length;
+  const atsScore = Math.min(100, Math.round((contactCount / 4) * 25 + Math.min(cv.skills.length, 8) * 4 + Math.min(cv.experience.length, 4) * 8 + (cv.summary ? 15 : 0)));
+  const jobScore = keywords.length ? Math.round((matches.length / keywords.length) * 100) : atsScore;
   return (
     <main className="analysis-page">
       <div className="page-intro">
@@ -1520,18 +1746,17 @@ function ATS({ cv }: { cv: CVData }) {
         </section>
         <section className="score-card">
           <div className="ring">
-            <b>{ran ? 87 : 92}</b>
+            <b>{ran ? jobScore : atsScore}</b>
             <span>/ 100</span>
           </div>
-          <h2>{ran ? "Strong match" : "ATS-ready"}</h2>
+          <h2>{ran ? "Role match" : "Current CV score"}</h2>
           <p>
-            Your CV has a clear structure, complete contact details, and a good
-            balance of keywords.
+            Your score updates from the information currently in your CV.
           </p>
           <div className="score-bars">
-            <Bar title="Formatting" value={96} />
-            <Bar title="Skills & keywords" value={ran ? 82 : 90} />
-            <Bar title="Impact & readability" value={85} />
+            <Bar title="Contact details" value={contactCount * 25} />
+            <Bar title="Skills & keywords" value={ran ? jobScore : Math.min(100, cv.skills.length * 12)} />
+            <Bar title="Experience coverage" value={Math.min(100, cv.experience.length * 25)} />
           </div>
         </section>
       </div>
@@ -1588,8 +1813,8 @@ function Bar({ title, value }: { title: string; value: number }) {
   );
 }
 function Cover({ cv, notify }: { cv: CVData; notify: (s: string) => void }) {
-  const [job, setJob] = useState("Product Designer"),
-    [company, setCompany] = useState("Northstar"),
+  const [job, setJob] = useState(""),
+    [company, setCompany] = useState(""),
     [letter, setLetter] = useState("");
   const generate = () => {
     setLetter(
