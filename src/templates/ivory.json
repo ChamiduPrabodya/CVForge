@@ -1,0 +1,33 @@
+{
+  "id": "ivory",
+  "name": "Ivory",
+  "category": "Professional",
+  "description": "A warm ivory photo header, classic serif typography, and a slim summary-and-skills column. A refined layout for analysts, consultants, and business professionals.",
+  "style": "ivory",
+  "status": "published",
+  "version": 1,
+  "layout": "two-column",
+  "sidebarPosition": "left",
+  "sidebarWidth": 34.5,
+  "headerAlign": "left",
+  "showPhoto": true,
+  "photoShape": "square",
+  "pageSize": "a4",
+  "pageMargin": 26,
+  "density": "compact",
+  "divider": "line",
+  "skillStyle": "plain",
+  "contactStyle": "stacked",
+  "sidebarSections": ["summary", "skills", "languages", "certifications"],
+  "sectionLabels": { "summary": "Summary", "experience": "Experience" },
+  "design": {
+    "accent": "#ece1d9",
+    "secondaryAccent": "#17151d",
+    "background": "#ffffff",
+    "font": "Times New Roman",
+    "headingFont": "Times New Roman",
+    "spacing": 1,
+    "bodyFontSize": 11,
+    "nameFontSize": 26
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "id": "careline",
+  "name": "Careline",
+  "category": "Healthcare",
+  "description": "A sage-green sidebar with personal details and skills, plus a clear employment timeline. Designed for nursing, healthcare, and care professionals.",
+  "style": "careline",
+  "status": "published",
+  "version": 1,
+  "layout": "two-column",
+  "sidebarPosition": "left",
+  "sidebarWidth": 31.5,
+  "headerAlign": "left",
+  "showPhoto": false,
+  "pageSize": "a4",
+  "pageMargin": 26,
+  "density": "compact",
+  "divider": "line",
+  "skillStyle": "plain",
+  "contactStyle": "stacked",
+  "sidebarSections": ["skills", "languages", "certifications"],
+  "sectionLabels": { "experience": "Employment", "summary": "Profile" },
+  "design": {
+    "accent": "#70aa8d",
+    "secondaryAccent": "#579978",
+    "background": "#ffffff",
+    "font": "Arial",
+    "headingFont": "Arial",
+    "spacing": 1,
+    "bodyFontSize": 11,
+    "nameFontSize": 28
+  }
+}

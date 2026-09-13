@@ -1,0 +1,32 @@
+{
+  "id": "boutique",
+  "name": "Boutique",
+  "category": "Sales & Retail",
+  "description": "A bold burgundy name banner, charcoal sidebar, language bars, and compact section labels. Designed for fashion retail and customer service careers.",
+  "style": "boutique",
+  "status": "published",
+  "version": 1,
+  "layout": "two-column",
+  "sidebarPosition": "left",
+  "sidebarWidth": 33.5,
+  "headerAlign": "left",
+  "showPhoto": false,
+  "pageSize": "a4",
+  "pageMargin": 26,
+  "density": "compact",
+  "divider": "accent",
+  "skillStyle": "plain",
+  "contactStyle": "stacked",
+  "sidebarSections": ["languages", "skills", "certifications"],
+  "sectionLabels": { "summary": "Profile", "experience": "Employment", "skills": "Qualities" },
+  "design": {
+    "accent": "#690d3e",
+    "secondaryAccent": "#282830",
+    "background": "#ffffff",
+    "font": "Arial",
+    "headingFont": "Arial",
+    "spacing": 1,
+    "bodyFontSize": 11,
+    "nameFontSize": 36
+  }
+}

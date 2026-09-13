@@ -14,10 +14,13 @@ import {
   FileText,
   GripVertical,
   LayoutTemplate,
+  Mail,
+  MapPin,
   Menu,
   MoreHorizontal,
   Palette,
   PenLine,
+  Phone,
   Plus,
   Printer,
   Rocket,
@@ -27,11 +30,17 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  UserRound,
   WandSparkles,
   X,
   Zap,
 } from "lucide-react";
 import "./styles.css";
+import PhotoEditor from "./PhotoEditor";
+import carelineTemplate from "./templates/careline.json";
+import saleslineTemplate from "./templates/salesline.json";
+import boutiqueTemplate from "./templates/boutique.json";
+import ivoryTemplate from "./templates/ivory.json";
 
 type Experience = {
   id: string;
@@ -45,6 +54,7 @@ type Experience = {
 type Education = {
   id: string;
   degree: string;
+  description?: string;
   school: string;
   location: string;
   start: string;
@@ -110,18 +120,12 @@ type Template = {
   sidebarSections?: string[];
   sectionLabels?: Record<string, string>;
 };
-const adminTemplateLayouts = [
-  ["modern", "Modern editorial"], ["classic", "Classic"], ["executive", "Executive"],
-  ["creative", "Creative"], ["minimal", "Minimal"], ["tech", "Technical"],
-  ["ats", "ATS focused"], ["student", "Student"], ["elegant", "Elegant"],
-  ["corporate", "Corporate"], ["twocolumn", "Two column"],
-] as const;
 const newSystemTemplateDraft = (): Template => ({
   id: "",
   name: "",
   category: "Custom",
   description: "A new CVForge template.",
-  style: "modern",
+  style: "custom",
   ats: true,
   status: "draft",
   version: 1,
@@ -172,7 +176,7 @@ async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
 const initialCV: CVData = {
   id: uid(),
   name: "Untitled CV",
-  template: "modern",
+  template: "custom",
   fullName: "",
   title: "",
   email: "",
@@ -206,88 +210,20 @@ const hydrateCV = (stored: Partial<CVData>): CVData => ({
   design: { ...initialCV.design, ...(stored.design ?? {}) },
   sections: Array.isArray(stored.sections) ? [...new Set(stored.sections.filter((section) => initialCV.sections.includes(section)))] : [...initialCV.sections],
 });
-const templates: Template[] = [
-  { id: "custom", name: "Blank Canvas", category: "Custom", description: "A flexible foundation for your own visual style.", style: "custom" },
-  {
-    id: "classic",
-    name: "Meridian",
-    category: "Professional",
-    description: "A formal, single-column standard for established industries.",
-    ats: true,
-    style: "classic",
-  },
-  {
-    id: "modern",
-    name: "Atlas",
-    category: "Modern",
-    description: "Clean editorial structure with a confident modern accent.",
-    ats: true,
-    style: "modern",
-  },
-  {
-    id: "executive",
-    name: "Boardroom",
-    category: "Executive",
-    description: "An executive profile built around leadership and impact.",
-    style: "executive",
-  },
-  {
-    id: "creative",
-    name: "Studio",
-    category: "Creative",
-    description: "A polished portfolio-inspired layout for creative work.",
-    style: "creative",
-  },
-  {
-    id: "tech",
-    name: "Circuit",
-    category: "Professional",
-    description: "Structured, data-forward design for product and technology.",
-    ats: true,
-    style: "tech",
-  },
-  {
-    id: "ats",
-    name: "Essential ATS",
-    category: "ATS-Friendly",
-    description: "A clear, parseable resume with no unnecessary decoration.",
-    ats: true,
-    style: "ats",
-  },
-  {
-    id: "student",
-    name: "Launchpad",
-    category: "Student",
-    description: "Education and projects first for students and early careers.",
-    ats: true,
-    style: "student",
-  },
-  {
-    id: "elegant",
-    name: "Maison",
-    category: "Minimal",
-    description: "Refined typography and breathing room for thoughtful roles.",
-    style: "elegant",
-  },
-  {
-    id: "corporate",
-    name: "Slate",
-    category: "Professional",
-    description: "A structured corporate format for finance, consulting, and ops.",
-    ats: true,
-    style: "corporate",
-  },
-  {
-    id: "twocolumn",
-    name: "Frame",
-    category: "Experienced",
-    description: "A balanced two-column profile with a focused information rail.",
-    style: "twocolumn",
-  },
-];
+// A document can be edited before any reusable templates have been created.
+const documentTemplate = (cv: CVData): Template => cv.templateConfig ?? bundledTemplates.find((template) => template.style === cv.template) ?? {
+  id: "",
+  name: "Your design",
+  category: "Custom",
+  description: "",
+  style: cv.template || "custom",
+};
+const bundledTemplates: Template[] = [carelineTemplate as Template, saleslineTemplate as Template, boutiqueTemplate as Template, ivoryTemplate as Template];
 const categories = [
   "All",
   "Professional",
+  "Healthcare",
+  "Sales & Retail",
   "Modern",
   "Minimal",
   "Creative",
@@ -326,7 +262,7 @@ function App() {
     [toast, setToast] = useState(""),
     [mobile, setMobile] = useState(false),
     [customTemplates, setCustomTemplates] = useState<Template[]>([]),
-    [systemTemplates, setSystemTemplates] = useState<Template[]>(templates),
+    [systemTemplates, setSystemTemplates] = useState<Template[]>(bundledTemplates),
     [auth, setAuth] = useState<AuthUser | null>(() => {
       try { return JSON.parse(localStorage.getItem("cvforge-auth-user") || "null"); } catch { return null; }
     });
@@ -347,7 +283,7 @@ function App() {
   }, []);
   useEffect(() => {
     void apiRequest<Template[]>("/templates/public")
-      .then((items) => { if (items.length) setSystemTemplates(items); })
+      .then((items) => setSystemTemplates([...bundledTemplates.filter((template) => !items.some((item) => item.id === template.id)), ...items]))
       .catch(() => {});
   }, []);
   useEffect(() => {
@@ -418,7 +354,7 @@ function App() {
   const saveCustomTemplate = (design: DesignSettings) => {
     const name = window.prompt("Name your reusable template", "My custom template")?.trim();
     if (!name) return;
-    const template: Template = { id: `saved-${uid()}`, name, category: "Custom", description: "Your saved colors, type scale, and spacing.", style: "custom", design };
+    const template: Template = { ...documentTemplate(cv), id: `saved-${uid()}`, name, category: "Custom", description: "Your saved layout, colors, type scale, and spacing.", style: cv.template, design };
     setCustomTemplates((items) => {
       const next = [...items, template];
       localStorage.setItem("cvforge-custom-templates", JSON.stringify(next));
@@ -492,9 +428,9 @@ function App() {
         </div>
       )}
       {page === "home" && <Home go={setPage} />}{" "}
-      {page === "templates" && <Templates cv={cv} templates={[...systemTemplates, ...customTemplates]} choose={choose} />}{" "}
+      {page === "templates" && <Templates cv={cv} templates={[...systemTemplates, ...customTemplates]} choose={choose} startBlank={() => { setCV({ ...initialCV, id: uid() }); setPage("builder"); }} />}{" "}
       {page === "builder" && (
-        <Builder cv={cv} setCV={setCV} save={save} notify={notify} saveCustomTemplate={saveCustomTemplate} />
+        <Builder cv={cv} setCV={setCV} save={save} notify={notify} saveCustomTemplate={saveCustomTemplate} changeTemplate={() => setPage("templates")} />
       )}{" "}
       {page === "dashboard" && <Dashboard cv={cv} go={setPage} save={save} auth={auth} />}{" "}
       {page === "ats" && <ATS cv={cv} />}{" "}
@@ -524,8 +460,8 @@ function Home({ go }: { go: (v: string) => void }) {
           <em>that gets noticed.</em>
         </h1>
         <p>
-          Build a beautiful, ATS-friendly CV in minutes. Choose a template, make
-          it yours, and download it with confidence.
+          Build a beautiful, ATS-friendly CV in minutes. Add your experience,
+          customize your design, and download it with confidence.
         </p>
         <div className="hero-actions">
           <button className="primary" onClick={() => go("templates")}>
@@ -537,7 +473,7 @@ function Home({ go }: { go: (v: string) => void }) {
         </div>
         <div className="trust">
           <span>✦ No credit card required</span>
-          <span>✦ ATS-optimized templates</span>
+          <span>✦ Flexible CV design</span>
           <span>✦ Export as PDF</span>
         </div>
       </section>
@@ -579,7 +515,7 @@ function Home({ go }: { go: (v: string) => void }) {
           <Feature
             icon={<LayoutTemplate />}
             title="Design that opens doors"
-            text="Start with a template crafted by people who care about first impressions."
+            text="Create your own design with custom colors, typography, and spacing."
           />
           <Feature
             icon={<Zap />}
@@ -702,9 +638,9 @@ function AdminPage({ notify, auth }: { notify: (message: string) => void; auth: 
           <div className="fields two"><Input label="Template name" value={draftTemplate.name} onChange={(name) => setDraftTemplate((draft) => ({ ...draft, name }))} placeholder="e.g. Horizon" /><Input label="Category" value={draftTemplate.category} onChange={(category) => setDraftTemplate((draft) => ({ ...draft, category }))} placeholder="e.g. Professional" /></div>
           <label className="field"><span>Start from an existing template</span><select defaultValue="" onChange={(event) => { const source = templateRecords.find((item) => item.id === event.target.value); if (source) duplicateTemplate(source); event.currentTarget.value = ""; }}><option value="">Blank designer</option>{templateRecords.map((template) => <option value={template.id} key={template.id}>{template.name} · v{template.version ?? 1}</option>)}</select></label>
           <Input label="Short description" value={draftTemplate.description} onChange={(description) => setDraftTemplate((draft) => ({ ...draft, description }))} placeholder="What makes this template useful?" />
-          <div className="fields two"><label className="field"><span>Layout</span><select value={draftTemplate.style} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, style: event.target.value }))}>{adminTemplateLayouts.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label className="designer-toggle"><input type="checkbox" checked={Boolean(draftTemplate.ats)} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, ats: event.target.checked }))} /> ATS-friendly</label></div>
-          <div className="designer-style-row"><label className="field"><span>Accent color</span><input className="designer-color" type="color" value={draftTemplate.design?.accent ?? "#514ed0"} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, design: { ...(draft.design ?? newSystemTemplateDraft().design!), accent: event.target.value } }))} /></label><label className="field"><span>Font family</span><select value={draftTemplate.design?.font ?? "Inter"} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, design: { ...(draft.design ?? newSystemTemplateDraft().design!), font: event.target.value } }))}><option>Inter</option><option>Roboto</option><option>Open Sans</option><option>Lato</option><option>Poppins</option><option>Merriweather</option></select></label></div>
-          <div className="designer-ranges"><label>Section spacing <b>{(draftTemplate.design?.spacing ?? 1).toFixed(1)}x</b><input type="range" min="0.7" max="1.5" step="0.1" value={draftTemplate.design?.spacing ?? 1} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, design: { ...(draft.design ?? newSystemTemplateDraft().design!), spacing: +event.target.value } }))} /></label><label>Body size <b>{draftTemplate.design?.bodyFontSize ?? 11}px</b><input type="range" min="9" max="14" step="1" value={draftTemplate.design?.bodyFontSize ?? 11} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, design: { ...(draft.design ?? newSystemTemplateDraft().design!), bodyFontSize: +event.target.value } }))} /></label><label>Name size <b>{draftTemplate.design?.nameFontSize ?? 28}px</b><input type="range" min="22" max="36" step="1" value={draftTemplate.design?.nameFontSize ?? 28} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, design: { ...(draft.design ?? newSystemTemplateDraft().design!), nameFontSize: +event.target.value } }))} /></label></div>
+          <div className="fields two"><label className="designer-toggle"><input type="checkbox" checked={Boolean(draftTemplate.ats)} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, ats: event.target.checked }))} /> ATS-friendly</label></div>
+          <div className="designer-style-row"><label className="field"><span>Accent color</span><input className="designer-color" type="color" value={draftTemplate.design?.accent ?? "#514ed0"} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, design: { ...(draft.design ?? newSystemTemplateDraft().design!), accent: event.target.value } }))} /></label><label className="field"><span>Font family</span><select value={draftTemplate.design?.font ?? "Inter"} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, design: { ...(draft.design ?? newSystemTemplateDraft().design!), font: event.target.value } }))}><option>Times New Roman</option><option>Arial</option><option>Inter</option><option>Roboto</option><option>Open Sans</option><option>Lato</option><option>Poppins</option><option>Merriweather</option></select></label></div>
+          <div className="designer-ranges"><label>Section spacing <b>{(draftTemplate.design?.spacing ?? 1).toFixed(1)}x</b><input type="range" min="0.7" max="1.5" step="0.1" value={draftTemplate.design?.spacing ?? 1} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, design: { ...(draft.design ?? newSystemTemplateDraft().design!), spacing: +event.target.value } }))} /></label><label>Body size <b>{draftTemplate.design?.bodyFontSize ?? 11}px</b><input type="range" min="9" max="14" step="1" value={draftTemplate.design?.bodyFontSize ?? 11} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, design: { ...(draft.design ?? newSystemTemplateDraft().design!), bodyFontSize: +event.target.value } }))} /></label><label>Name size <b>{draftTemplate.design?.nameFontSize ?? 28}px</b><input type="range" min="14" max="36" step="1" value={draftTemplate.design?.nameFontSize ?? 28} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, design: { ...(draft.design ?? newSystemTemplateDraft().design!), nameFontSize: +event.target.value } }))} /></label></div>
           <div className="designer-advanced-grid"><label className="field"><span>Page size</span><select value={draftTemplate.pageSize} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, pageSize: event.target.value as "a4" | "letter" }))}><option value="a4">A4</option><option value="letter">US Letter</option></select></label><label className="field"><span>Page margin</span><select value={draftTemplate.pageMargin} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, pageMargin: +event.target.value }))}><option value="30">30 px</option><option value="42">42 px</option><option value="54">54 px</option></select></label><label className="field"><span>Content density</span><select value={draftTemplate.density} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, density: event.target.value as Template["density"] }))}><option value="compact">Compact</option><option value="standard">Standard</option><option value="relaxed">Relaxed</option></select></label><label className="field"><span>Structure</span><select value={draftTemplate.layout} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, layout: event.target.value as Template["layout"] }))}><option value="single">Single column</option><option value="two-column">Two columns</option></select></label><label className="field"><span>Sidebar position</span><select value={draftTemplate.sidebarPosition} disabled={draftTemplate.layout !== "two-column"} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, sidebarPosition: event.target.value as Template["sidebarPosition"] }))}><option value="left">Left</option><option value="right">Right</option></select></label><label className="field"><span>Sidebar width</span><select value={draftTemplate.sidebarWidth} disabled={draftTemplate.layout !== "two-column"} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, sidebarWidth: +event.target.value }))}><option value="28">28%</option><option value="32">32%</option><option value="36">36%</option></select></label></div>
           <div className="designer-advanced-grid"><label className="field"><span>Header alignment</span><select value={draftTemplate.headerAlign} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, headerAlign: event.target.value as Template["headerAlign"] }))}><option value="left">Left</option><option value="center">Center</option></select></label><label className="field"><span>Photo shape</span><select value={draftTemplate.photoShape} disabled={!draftTemplate.showPhoto} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, photoShape: event.target.value as Template["photoShape"] }))}><option value="circle">Circle</option><option value="rounded">Rounded</option><option value="square">Square</option></select></label><label className="designer-toggle"><input type="checkbox" checked={draftTemplate.showPhoto !== false} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, showPhoto: event.target.checked }))} /> Show profile photo</label><label className="field"><span>Divider</span><select value={draftTemplate.divider} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, divider: event.target.value as Template["divider"] }))}><option value="line">Line</option><option value="accent">Accent</option><option value="none">None</option></select></label><label className="field"><span>Skills</span><select value={draftTemplate.skillStyle} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, skillStyle: event.target.value as Template["skillStyle"] }))}><option value="chips">Chips</option><option value="plain">Plain text</option><option value="bars">Bars</option></select></label><label className="field"><span>Contact details</span><select value={draftTemplate.contactStyle} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, contactStyle: event.target.value as Template["contactStyle"] }))}><option value="inline">Inline</option><option value="stacked">Stacked</option></select></label></div>
           <TemplateSectionTools template={draftTemplate} onChange={setDraftTemplate} />
@@ -770,10 +706,12 @@ function Templates({
   cv,
   templates: allTemplates,
   choose,
+  startBlank,
 }: {
   cv: CVData;
   templates: Template[];
   choose: (template: Template) => void;
+  startBlank: () => void;
 }) {
   const [filter, setFilter] = useState("All"),
     [preview, setPreview] = useState<Template | null>(null);
@@ -804,6 +742,12 @@ function Templates({
         </div>
         <span>{visible.length} templates</span>
       </div>
+      {visible.length === 0 && <div className="template-empty">
+        <LayoutTemplate size={32} />
+        <h2>{allTemplates.length ? "No templates in this category" : "No templates yet"}</h2>
+        <p>Start a blank CV, customize its design, and save it as your own template.</p>
+        <button className="primary" onClick={startBlank}>Start a blank CV <ArrowRight size={16} /></button>
+      </div>}
       <div className="templates-grid">
         {visible.map((t) => (
           <article className="template-card" key={t.id}>
@@ -831,7 +775,7 @@ function Templates({
               <X />
             </button>
             <div className="modal-cv" style={{ "--accent": preview.design?.accent ?? cv.design.accent, "--cv-font": preview.design?.font ?? cv.design.font, "--space": preview.design?.spacing ?? cv.design.spacing, "--body-font-size": `${preview.design?.bodyFontSize ?? cv.design.bodyFontSize}px`, "--name-font-size": `${preview.design?.nameFontSize ?? cv.design.nameFontSize}px` } as React.CSSProperties}>
-              <CVPreview cv={{ ...cv, template: preview.style, design: preview.design ?? cv.design }} template={preview} />
+              <CVPreview cv={{ ...templatePreviewData(cv, preview), template: preview.style, design: preview.design ?? cv.design }} template={preview} />
             </div>
             <div>
               <span className="eyebrow">{preview.category} TEMPLATE</span>
@@ -851,6 +795,7 @@ function Templates({
   );
 }
 function TemplateThumb({ cv, template }: { cv: CVData; template: Template }) {
+  if (["careline", "salesline", "boutique", "ivory"].includes(template.style)) return <TimelineThumbnail cv={cv} template={template} />;
   return (
     <div className={"template-thumb " + template.style} style={{ "--template-accent": template.design?.accent ?? "#514ed0" } as React.CSSProperties}>
       <ThumbDesign cv={cv} style={template.style} />
@@ -861,6 +806,7 @@ function ThumbDesign({ cv, style }: { cv: CVData; style: string }) {
   const photo = <div className="thumb-photo-slot">{cv.photo ? <img src={cv.photo} alt="" /> : <span>PHOTO</span>}</div>;
   const lines = <><div className="thumb-line wide" /><div className="thumb-line" /><div className="thumb-line" /></>;
   const skills = <><div className="thumb-head">SKILLS</div><div className="thumb-chips"><i /><i /><i /></div></>;
+  if (style === "portrait") return <div className="portrait-thumb-page"><div className="portrait-thumb-sidebar"><div className="portrait-thumb-photo">{cv.photo ? <img src={cv.photo} alt="" /> : <UserRound aria-hidden="true" />}</div><div className="thumb-head">SKILLS</div>{lines}<div className="thumb-head">LANGUAGES</div>{lines}</div><div className="portrait-thumb-main"><div className="thumb-name">{cv.fullName || "YOUR NAME"}</div><div className="thumb-title">{cv.title || "Professional title"}</div>{lines}<div className="thumb-head">SUMMARY</div>{lines}<div className="thumb-head">EXPERIENCE</div>{lines}{lines}<div className="thumb-head">EDUCATION</div>{lines}</div></div>;
   if (style === "executive") return <><div className="thumb-executive-bar" /><div className="thumb-name">{cv.fullName}</div><div className="thumb-title">EXECUTIVE PROFILE</div>{photo}<div className="thumb-head">LEADERSHIP EXPERIENCE</div>{lines}{skills}</>;
   if (style === "creative") return <><div className="thumb-creative-block" />{photo}<div className="thumb-name">{cv.fullName}</div><div className="thumb-title">{cv.title}</div><div className="thumb-creative-rule" />{lines}<div className="thumb-head">SELECTED WORK</div>{lines}</>;
   if (style === "tech") return <><div className="thumb-tech-label">// PROFILE</div><div className="thumb-name">{cv.fullName}</div>{photo}<div className="thumb-title">{cv.title}</div><div className="thumb-tech-grid">{lines}</div><div className="thumb-head">TECH STACK</div>{skills}</>;
@@ -880,12 +826,14 @@ function Builder({
   save,
   notify,
   saveCustomTemplate,
+  changeTemplate,
 }: {
   cv: CVData;
   setCV: React.Dispatch<React.SetStateAction<CVData>>;
   save: () => void;
   notify: (s: string) => void;
   saveCustomTemplate: (design: DesignSettings) => void;
+  changeTemplate: () => void;
 }) {
   const [tab, setTab] = useState<"edit" | "preview" | "style">("edit"),
     [open, setOpen] = useState("personal"),
@@ -894,6 +842,7 @@ function Builder({
     [spacing, setSpacing] = useState(cv.design?.spacing ?? 1),
     [bodyFontSize, setBodyFontSize] = useState(cv.design?.bodyFontSize ?? 11),
     [nameFontSize, setNameFontSize] = useState(cv.design?.nameFontSize ?? 28),
+    [photoToEdit, setPhotoToEdit] = useState(""),
     [zoom, setZoom] = useState(1),
     previewRef = useRef<HTMLDivElement>(null),
     previewAreaRef = useRef<HTMLElement>(null);
@@ -902,7 +851,7 @@ function Builder({
   useEffect(() => {
     setCV((document) => ({
       ...document,
-      design: { accent: color, font, spacing, bodyFontSize, nameFontSize },
+      design: { ...document.design, accent: color, font, spacing, bodyFontSize, nameFontSize },
     }));
   }, [color, font, spacing, bodyFontSize, nameFontSize, setCV]);
   const updateItem = <T extends { id: string }>(
@@ -913,13 +862,19 @@ function Builder({
   ) => update(key, items.map((item) => item.id === id ? { ...item, ...patch } : item));
   const uploadPhoto = (file?: File) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      update("photo", String(reader.result));
-      notify("Profile photo added.");
-    };
-    reader.readAsDataURL(file);
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      notify("Please choose a JPG, PNG, or WebP photo.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      notify("Please choose a photo smaller than 10 MB.");
+      return;
+    }
+    setPhotoToEdit(URL.createObjectURL(file));
   };
+  useEffect(() => () => {
+    if (photoToEdit.startsWith("blob:")) URL.revokeObjectURL(photoToEdit);
+  }, [photoToEdit]);
   const addExp = () => {
     update("experience", [
       ...cv.experience,
@@ -1103,9 +1058,11 @@ function Builder({
             </div>
             <div className="photo-upload">
               {cv.photo ? <img src={cv.photo} alt="Profile" /> : <span>{cv.fullName.split(" ").map((part) => part[0]).join("")}</span>}
-              <label className="upload-control"><Upload size={14} /> Upload profile photo<input type="file" accept="image/*" onChange={(e) => uploadPhoto(e.target.files?.[0])} /></label>
+              <label className="upload-control"><Upload size={14} /> {cv.photo ? "Replace photo" : "Upload profile photo"}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => { uploadPhoto(e.target.files?.[0]); e.target.value = ""; }} /></label>
+              {cv.photo && <button type="button" className="edit-photo" onClick={() => setPhotoToEdit(cv.photo)}><PenLine size={14} /> Edit photo</button>}
               {cv.photo && <button className="remove-photo" onClick={() => update("photo", "")}>Remove</button>}
             </div>
+            {photoToEdit && <PhotoEditor key={photoToEdit} source={photoToEdit} onClose={() => setPhotoToEdit("")} onApply={(photo) => { update("photo", photo); setPhotoToEdit(""); notify("Profile photo updated."); }} />}
           </Accordion>
           <Accordion
             title="Professional summary"
@@ -1212,6 +1169,7 @@ function Builder({
                       )
                     }
                   />
+                  <label className="field"><span>Education details</span><textarea value={e.description ?? ""} onChange={(event) => update("education", cv.education.map((item, index) => index === i ? { ...item, description: event.target.value } : item))} placeholder="Modules, placements, or achievements (one per line)" /></label>
                   <div className="fields two">
                     <Input label="Location" value={e.location} onChange={(v) => update("education", cv.education.map((x, n) => n === i ? { ...x, location: v } : x))} />
                     <Input label="Dates" value={`${e.start} - ${e.end}`} onChange={(v) => { const [start, end] = v.split("-"); update("education", cv.education.map((x, n) => n === i ? { ...x, start: start?.trim() || "", end: end?.trim() || "" } : x)); }} />
@@ -1327,14 +1285,14 @@ function Builder({
           <h3>Template</h3>
           <button
             className="template-switch"
-            onClick={() => (location.hash = "templates")}
+            onClick={changeTemplate}
           >
             <TemplateThumb
               cv={cv}
-              template={templates.find((t) => t.id === cv.template)!}
+              template={documentTemplate(cv)}
             />
             <span>
-              {templates.find((t) => t.id === cv.template)?.name}
+              {documentTemplate(cv).name}
               <small>Change template</small>
             </span>
             <ChevronDown size={16} />
@@ -1370,6 +1328,7 @@ function Builder({
           <label className="select-label">
             Font family
             <select value={font} onChange={(e) => setFont(e.target.value)}>
+              <option>Times New Roman</option><option>Arial</option>
               <option>Inter</option>
               <option>Roboto</option>
               <option>Open Sans</option>
@@ -1404,7 +1363,7 @@ function Builder({
             Name heading size <b>{nameFontSize}px</b>
             <input
               type="range"
-              min="22"
+              min="14"
               max="36"
               step="1"
               value={nameFontSize}
@@ -1514,48 +1473,308 @@ function Repeater<T extends { id: string }>({
   </>;
 }
 
-function CVPreview({ cv, template }: { cv: CVData; template?: Template }) {
-  const t = template ?? cv.templateConfig ?? templates.find((x) => x.id === cv.template || x.style === cv.template) ?? templates[0];
-  const activeSections = template ? template.sections ?? cv.sections : cv.sections;
+// Clean only the rendered copy; unfinished form fields remain available to edit.
+function cvDisplayData(cv: CVData): CVData {
+  return Object.fromEntries(Object.entries(cv).map(([key, value]) => {
+    if (typeof value === "string") return [key, value.trim()];
+    if (!Array.isArray(value) || key === "sections") return [key, value];
+    return [key, value.map((item) => typeof item === "string" ? item.trim() : Object.fromEntries(
+      Object.entries(item).map(([field, text]) => [field, typeof text === "string" ? text.trim() : text]),
+    )).filter((item) => typeof item === "string" ? Boolean(item) : key === "languages" ? Boolean(item.language) : Object.entries(item).some(([field, text]) => field !== "id" && Boolean(text)))];
+  })) as CVData;
+}
+function hasSectionContent(cv: CVData, section: string) {
+  const content = cv[section as keyof CVData];
+  return typeof content === "string" ? Boolean(content.trim()) : Array.isArray(content) && content.length > 0;
+}
+function CVPreview({ cv: document, template }: { cv: CVData; template?: Template }) {
+  const cv = cvDisplayData(document);
+  const t = template ?? documentTemplate(cv);
+  const activeSections = (template ? template.sections ?? cv.sections : cv.sections).filter((section) => hasSectionContent(cv, section));
+  if (t.style === "ivory") return <IvoryCV cv={cv} template={t} sections={activeSections} />;
+  if (t.style === "boutique") return <BoutiqueCV cv={cv} template={t} sections={activeSections} />;
+  if (t.style === "careline" || t.style === "salesline") return <TimelineCV cv={cv} template={t} sections={activeSections} />;
+  if (t.style === "portrait") return <PortraitCV cv={cv} template={t} sections={activeSections} />;
   const sidebarSections = t.sidebarSections?.length ? t.sidebarSections : ["skills", "languages", "certifications"];
-  const showPhoto = t.showPhoto !== false;
+  const showPhoto = t.showPhoto !== false && Boolean(cv.photo);
   const isTwoColumn = t.layout === "two-column" || t.style === "twocolumn";
   const documentStyle = { "--page-margin": `${t.pageMargin ?? 54}px`, "--cv-background": t.design?.background ?? "#ffffff", "--secondary-accent": t.design?.secondaryAccent ?? "#697386", "--cv-heading-font": t.design?.headingFont ?? t.design?.font ?? "Inter", "--sidebar-width": `${t.sidebarWidth ?? 37}%` } as React.CSSProperties;
   const classes = `${isTwoColumn ? "cv-twocolumn" : `cv-${t.style}`} header-${t.headerAlign ?? "left"} photo-${t.photoShape ?? "circle"} divider-${t.divider ?? "line"} skills-${t.skillStyle ?? "chips"} contact-${t.contactStyle ?? "inline"} density-${t.density ?? "standard"} ${t.sidebarPosition === "right" ? "sidebar-right" : ""}`;
-  const contact = [cv.email, cv.phone, cv.location, cv.website].filter(Boolean);
-  const photo = showPhoto ? <div className="cv-photo-slot" aria-label="Profile photo">{cv.photo ? <img src={cv.photo} alt={`${cv.fullName}'s profile`} /> : <span>{cv.fullName.split(" ").map((part) => part[0]).join("")}</span>}</div> : null;
+  const contact = [cv.email, cv.phone, cv.location, cv.website, cv.linkedin].filter(Boolean);
+  const photo = showPhoto ? <div className="cv-photo-slot" aria-label="Profile photo"><img src={cv.photo} alt={`${cv.fullName || "Your"} profile`} /></div> : null;
+  const identity = <>{cv.fullName && <h1>{cv.fullName}</h1>}{cv.title && <h2>{cv.title}</h2>}</>;
+  const contactDetails = contact.length > 0 && <div className="contact">{contact.map((item, index) => <span key={index}>{item}</span>)}</div>;
   if (isTwoColumn) {
-    const railContent = <aside className="cv-side-rail">{photo}<h1>{cv.fullName}</h1><h2>{cv.title}</h2><div className="contact">{contact.map((item) => <span key={item}>{item}</span>)}</div>{activeSections.filter((section) => sidebarSections.includes(section)).map((section) => <CVSection key={section} type={section} cv={cv} label={t.sectionLabels?.[section]} />)}</aside>;
+    const railContent = <aside className="cv-side-rail">{photo}{identity}{contactDetails}{activeSections.filter((section) => sidebarSections.includes(section)).map((section) => <CVSection key={section} type={section} cv={cv} label={t.sectionLabels?.[section]} />)}</aside>;
     const mainContent = <main className="cv-main-column">{activeSections.filter((section) => !sidebarSections.includes(section)).map((section) => <CVSection key={section} type={section} cv={cv} label={t.sectionLabels?.[section]} />)}</main>;
     return <article className={`cv-document ${classes}`} style={documentStyle}>{t.sidebarPosition === "right" ? <>{mainContent}{railContent}</> : <>{railContent}{mainContent}</>}</article>;
   }
-  return <article className={`cv-document ${classes}`} style={documentStyle}><header className="cv-header"><div><h1>{cv.fullName}</h1><h2>{cv.title}</h2></div>{photo}<div className="contact">{contact.map((item) => <span key={item}>{item}</span>)}</div></header><div className="cv-body">{activeSections.map((section) => <CVSection key={section} type={section} cv={cv} label={t.sectionLabels?.[section]} />)}</div></article>;
+  return <article className={`cv-document ${classes}`} style={documentStyle}>{(cv.fullName || cv.title || photo || contact.length > 0) && <header className="cv-header">{(cv.fullName || cv.title) && <div>{identity}</div>}{photo}{contactDetails}</header>}<div className="cv-body">{activeSections.map((section) => <CVSection key={section} type={section} cv={cv} label={t.sectionLabels?.[section]} />)}</div></article>;
+}
+// Sample content is used only for an empty gallery preview, never saved to a CV.
+function templatePreviewData(cv: CVData, template: Template): CVData {
+  if (!["careline", "salesline", "boutique", "ivory"].includes(template.style) || cv.fullName || cv.title || cv.summary || cv.email || cv.phone || cv.location || cv.website || cv.linkedin || cv.photo || initialCV.sections.some((key) => Array.isArray(cv[key as keyof CVData]) && (cv[key as keyof CVData] as unknown[]).length)) return cv;
+  if (template.style === "ivory") return {
+    ...initialCV,
+    fullName: "Samantha Williams", title: "Senior Analyst",
+    email: "samantha.williams@example.com", phone: "(555) 789-1234", location: "New York, NY, 10001",
+    summary: "Senior Analyst with 5+ years of experience in data analysis, business intelligence, and process optimization. Skilled in driving operational efficiency, forecasting, and leading data-driven strategies to support business decisions and improvements. Strong communicator focused on results.",
+    skills: ["Project Management", "Data-driven Decision Making", "SQL & Excel", "Financial Analysis", "Business Intelligence Tools", "Statistical Modeling"],
+    experience: [
+      { id: "ivory-1", title: "Senior Analyst", company: "Loom & Lantern Co.", location: "New York, NY", start: "Jan 2021", end: "Current", description: "Spearheaded data analysis and reporting for key business functions, identifying trends and providing insights to improve company performance and profitability.\nConducted in-depth market analysis and competitive benchmarking to inform strategic decisions, resulting in a 15% increase in market share within one year.\nDeveloped predictive models to forecast sales performance and customer behavior, contributing to more accurate budgeting and resource allocation." },
+      { id: "ivory-2", title: "Business Analyst", company: "Willow & Wren Ltd.", location: "New York, NY", start: "Jul 2017", end: "Apr 2021", description: "Analyzed and interpreted large datasets to identify business opportunities and recommend process improvements, leading to a 20% reduction in operational costs.\nCreated detailed financial models and dashboards to track key performance indicators, enabling data-driven decisions across departments.\nWorked closely with project managers to translate customer requirements into actionable initiatives, ensuring projects were delivered on time and within budget." },
+    ],
+    education: [{ id: "ivory-education", degree: "Bachelor of Science, Economics", school: "New York University", location: "New York, NY", start: "Aug 2013", end: "Apr 2017", description: "" }],
+    design: { ...initialCV.design, ...template.design },
+  };
+  if (template.style === "boutique") return {
+    ...initialCV,
+    fullName: "Caitlin Smith",
+    title: "Customer-Focused Retail Assistant",
+    email: "caitlinsmith@example.com", phone: "+44 75778 563566", location: "29 West Street, BN1 7RR Brighton",
+    summary: "I am a customer-focused retail assistant with 4 years of retail experience. I quickly acquire product knowledge to offer advice tailored to customers' needs. Through upselling accessories at a fashion outlet, I consistently generated over £500 in additional daily revenue. I am seeking a role at a fashion retailer to continue delivering excellent service.",
+    skills: ["Communication: Explaining products to customers, responding to complaints, and handling queries by phone, email, or live chat.", "Attention to detail: Processing transactions correctly and monitoring stock levels accurately.", "Mathematical: Managing cash, handling large amounts of money, and approving credit.", "Sales: Upselling accessories to generate £500 in additional daily revenue.", "Technical: Operating electronic cash registers, credit card processors, and Shopify."],
+    languages: [{ id: "boutique-en", language: "English", proficiency: "Native" }, { id: "boutique-fr", language: "French", proficiency: "Beginner" }],
+    experience: [
+      { id: "boutique-1", title: "Fashion Sales Assistant", company: "TopShop", location: "London", start: "", end: "Present", description: "Received Sales Associate of the Year for successfully selling over £30k in fashion accessories.\nDeveloped knowledge of current sales promotions and events to inform customers at the entrance.\nStocked shelves and displayed products according to merchandising department layouts." },
+      { id: "boutique-2", title: "Sales Associate", company: "PC World", location: "London", start: "Aug 2017", end: "Dec 2019", description: "Offered customers assistance with purchases and specialist product advice, generating daily sales of £2,000.\nServed and assisted customers with checkouts.\nAnswered phone enquiries and complaints while remaining professional at all times." },
+    ],
+    education: [
+      { id: "boutique-education-1", degree: "BTEC Level 3 Certificate in Retail Knowledge", school: "Hither Green College", location: "London", start: "Sep 2016", end: "Jul 2017", description: "Studied stock management, security, and loss prevention in a retail business, and how store operations can be improved." },
+      { id: "boutique-education-2", degree: "A-Levels in Economics, General Studies and English Languages", school: "Hayfield High School", location: "London", start: "Sep 2014", end: "Jul 2016", description: "Achieved 3 A grades." },
+    ],
+    design: { ...initialCV.design, ...template.design },
+  };
+  if (template.style === "salesline") return {
+    ...initialCV,
+    fullName: "Jane Smith",
+    title: "Customer-Focused and Target-Oriented Sales Assistant with 9 Years of Experience",
+    email: "jane_smith@example.com", phone: "+44 77345 468784", location: "19 Lights Road\nOX1 1AA Oxford",
+    summary: "I am a customer-focused and target-oriented sales assistant with 9 years of experience. My key achievements include generating £1,000 in additional monthly revenue and being named the best sales assistant in my first month at Bodyshop. I excel in understanding what customers need, asking the right questions, and forming trusting relationships.",
+    skills: ["Communication: Building relationships with customers to facilitate sales.", "Software: Experience with POS systems Lightspeed and Vend.", "Product knowledge: Developed comprehensive product knowledge to support customer enquiries and increase monthly sales.", "Leadership: Training new team members in company policies and service standards.", "Accounting: Processing £2,000 in daily transactions.", "Customer service: Achieved a 98% customer satisfaction rating.", "Visual merchandising: Arranging attractive displays to promote products."],
+    languages: [{ id: "sales-en", language: "English", proficiency: "Native" }, { id: "sales-de", language: "German", proficiency: "Advanced" }, { id: "sales-fr", language: "French", proficiency: "Intermediate" }],
+    experience: [
+      { id: "sales-1", title: "Sales Assistant", company: "Debenhams", location: "Oxford", start: "Sep 2018", end: "Present", description: "Consistently achieved £2,000 daily sales targets for beauty and cosmetic treatments.\nTrained new team members in company policies and expected service standards.\nIntroduced a stock management process that improved efficiency by 25%.\nProcessed cash and card payments using the Lightspeed POS system." },
+      { id: "sales-2", title: "Sales Assistant", company: "Superdrug", location: "Oxford", start: "Feb 2016", end: "Aug 2018", description: "Regularly exceeded sales targets by 20%.\nArranged attractive displays to promote products.\nRecorded deliveries and stored stock appropriately in the warehouse.\nAdvised customers on skincare regimes." },
+      { id: "sales-3", title: "Sales Assistant", company: "Bodyshop", location: "Oxford", start: "Mar 2012", end: "Jan 2015", description: "Named best sales assistant in my first month for generating £1,000 in revenue.\nReceived a 98% customer satisfaction rating.\nProcessed transactions using the Vend POS system.\nAssisted with promotions and product displays." },
+    ],
+    education: [{ id: "sales-education", degree: "Level 2 Certificate in Retail Skills", school: "City & Guilds", location: "London", start: "Aug 2011", end: "Sep 2011", description: "Displaying stock to promote products.\nKeeping stock on sale at required levels.\nDemonstrating products in a retail environment.\nHelping customers choose products.\nCarrying out promotional campaigns." }],
+    design: { ...initialCV.design, ...template.design },
+  };
+  return {
+    ...initialCV,
+    fullName: "Joanna Brown",
+    title: "Registered Nurse with 8 Years of Experience in Geriatric Care",
+    email: "j.brown@example.com", phone: "0123 456 7890", location: "123 Beston Fields Drive\nNG9 3DB Beeston",
+    summary: "Registered Nurse with 8 years of experience caring for elderly patients with complex health needs. Experienced in supporting patients with acute and chronic conditions, delivering emergency care, and working with multidisciplinary teams to provide compassionate, person-centred care.",
+    skills: ["ICU: Delivering Advanced Cardiac Life Support (ACLS) to patients with chronic health conditions.", "Leadership: Supervising nursing assistants and organising patient care.", "Empathy: Navigating sensitive situations with care and understanding.", "Communication: Sharing clear information with patients and families.", "Time management: Prioritising medication, observations, and patient evaluations."],
+    experience: [
+      { id: "sample-1", title: "Senior Nurse", company: "Woodfield Hospital", location: "Ipswich", start: "Apr 2018", end: "Present", description: "Provided daily care for elderly patients after surgery, monitoring vital signs and administering medication.\nCollaborated with doctors to develop long-term care plans following hospital stays.\nSupervised nursing assistants working on the unit." },
+      { id: "sample-2", title: "Registered Nurse", company: "Ashfield Care Home", location: "Kent", start: "Feb 2014", end: "Mar 2018", description: "Worked with the unit manager to care for frail and elderly patients with complex health needs.\nAdministered medication safely and maintained accurate patient records.\nCoordinated equipment and supplies to support the nursing team." },
+      { id: "sample-3", title: "Healthcare Assistant", company: "Chase Care Home", location: "Suffolk", start: "Nov 2013", end: "Jan 2014", description: "Supported the safety and wellbeing of elderly people with dementia.\nHelped deliver compassionate end-of-life care alongside specialist teams." },
+    ],
+    education: [{ id: "sample-education", degree: "Adult Nursing BSc Hons: 2:1", school: "University of London", location: "London", start: "Sep 2010", end: "Jul 2013", description: "Modules included integrated approaches to complex care, prescribing principles, acute care management, and collaborative practice." }],
+    design: { ...initialCV.design, ...template.design },
+  };
+}
+function TimelineThumbnail({ cv, template }: { cv: CVData; template: Template }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.28);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => setScale(Math.max(0.01, Math.min((entry.contentRect.width - 16) / 620, (entry.contentRect.height - 16) / 877))));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const previewCV = templatePreviewData(cv, template);
+  return <div ref={ref} className={`template-thumb careline ${template.style}`} aria-label={`${template.name} preview`}>
+    <div className="careline-thumb-frame" style={{ width: 620 * scale, height: 877 * scale }}>
+      <div className="careline-thumb-document" style={{ transform: `scale(${scale})` }}>
+        <CVPreview cv={{ ...previewCV, design: { ...previewCV.design, ...template.design } }} template={template} />
+      </div>
+    </div>
+  </div>;
+}
+function CarelineBullets({ text }: { text: string }) {
+  const lines = text.split(/\r?\n/).map((line) => line.trim().replace(/^[\u2022*\-]\s*/, "")).filter(Boolean);
+  return lines.length ? <ul>{lines.map((line, index) => <li key={index}>{line}</li>)}</ul> : null;
+}
+function TimelineCV({ cv, template, sections }: { cv: CVData; template: Template; sections: string[] }) {
+  const isSalesline = template.style === "salesline";
+  const sidebarSections = template.sidebarSections ?? ["skills", "languages", "certifications"];
+  const details = [["Name", cv.fullName], ["Email address", cv.email], ["Phone number", cv.phone], ["Address", cv.location], ["Website", cv.website], ["LinkedIn", cv.linkedin]].filter(([label, value]) => value.trim() && (!isSalesline || label !== "Name"));
+  const renderSection = (type: string) => {
+    const content = cv[type as keyof CVData];
+    if (typeof content === "string" ? !content.trim() : !Array.isArray(content) || !content.length) return null;
+    const label = template.sectionLabels?.[type] || sectionTitles[type];
+    if (isSalesline && type === "languages") return <section className="cv-section" key={type}><h3>{label}</h3><ul className="salesline-languages">{cv.languages.map((item) => {
+      const level = ({ Beginner: 1, Intermediate: 3, Advanced: 4, Fluent: 5, Native: 5 } as Record<string, number>)[item.proficiency] ?? 0;
+      return <li key={item.id}><span>{item.language}</span>{item.proficiency && <span className="salesline-rating" role="img" aria-label={item.proficiency} title={item.proficiency}>{Array.from({ length: 5 }, (_, index) => <i key={index} className={index < level ? "filled" : ""} aria-hidden="true" />)}</span>}</li>;
+    })}</ul></section>;
+    if (type === "skills") return <section className="cv-section" key={type}><h3>{label}</h3><ul className="careline-skills">{cv.skills.map((skill, index) => <li key={index}>{skill}</li>)}</ul></section>;
+    if (type === "experience" || type === "education") {
+      const entries = type === "experience"
+        ? cv.experience.map((item) => ({ ...item, heading: item.title, organization: item.company }))
+        : cv.education.map((item) => ({ ...item, heading: item.degree, organization: item.school }));
+      return <section className="cv-section" key={type}><h3>{label}</h3>{entries.map((item) => <div className="careline-entry" key={item.id}>
+        <time>{[item.start, item.end].filter(Boolean).join(" - ")}</time>
+        <div><h4>{item.heading}</h4><p className="careline-organization">{[item.organization, item.location].filter(Boolean).join(", ")}</p><CarelineBullets text={item.description ?? ""} /></div>
+      </div>)}</section>;
+    }
+    return <CVSection key={type} type={type} cv={cv} label={label} />;
+  };
+  const style = {
+    "--accent": cv.design.accent, "--cv-font": cv.design.font,
+    "--space": cv.design.spacing, "--body-font-size": `${cv.design.bodyFontSize}px`, "--name-font-size": `${cv.design.nameFontSize}px`,
+    "--careline-sidebar": `${template.sidebarWidth ?? 31.5}%`,
+    "--careline-background": cv.design.background ?? "#ffffff",
+  } as React.CSSProperties;
+  const heading = (cv.fullName || cv.title) && <header className="careline-header">{cv.fullName && <h1>{cv.fullName}</h1>}{cv.title && <p>{cv.title}</p>}</header>;
+  return <article className={`cv-document cv-careline${isSalesline ? " cv-salesline" : ""}`} style={style}>
+    {!isSalesline && <><div className="careline-top-accent" aria-hidden="true" />{heading}</>}
+    <div className={`careline-columns${template.sidebarPosition === "right" ? " careline-sidebar-right" : ""}`}>
+      <aside className="careline-sidebar">
+        {isSalesline && heading}
+        {details.length > 0 && <section className="cv-section careline-details"><h3>Personal details</h3><dl>{details.map(([label, value]) => <div key={label}><dt>{isSalesline ? <><span className="sr-only">{label}</span>{label === "Email address" ? <Mail aria-hidden="true" /> : label === "Phone number" ? <Phone aria-hidden="true" /> : label === "Address" ? <MapPin aria-hidden="true" /> : <FileText aria-hidden="true" />}</> : label}</dt><dd>{value}</dd></div>)}</dl></section>}
+        {sections.filter((section) => sidebarSections.includes(section)).map(renderSection)}
+      </aside>
+      <div className="careline-main">{sections.filter((section) => !sidebarSections.includes(section)).map(renderSection)}</div>
+    </div>
+  </article>;
+}
+function BoutiqueCV({ cv, template, sections }: { cv: CVData; template: Template; sections: string[] }) {
+  const sidebarSections = template.sidebarSections ?? ["languages", "skills", "certifications"];
+  const contact = [
+    { label: "Email", value: cv.email, icon: Mail },
+    { label: "Phone", value: cv.phone, icon: Phone },
+    { label: "Address", value: cv.location, icon: MapPin },
+    { label: "Website", value: cv.website, icon: FileText },
+    { label: "LinkedIn", value: cv.linkedin, icon: FileText },
+  ].filter((item) => item.value.trim());
+  const renderSection = (type: string) => {
+    const content = cv[type as keyof CVData];
+    if (typeof content === "string" ? !content.trim() : !Array.isArray(content) || !content.length) return null;
+    const label = template.sectionLabels?.[type] || sectionTitles[type];
+    if (type === "languages") return <section className="cv-section" key={type}><h3>{label}</h3><ul className="boutique-languages">{cv.languages.map((item) => {
+      const level = ({ Beginner: 20, Intermediate: 60, Advanced: 80, Fluent: 100, Native: 100 } as Record<string, number>)[item.proficiency] ?? 0;
+      return <li key={item.id}><span>{item.language}</span>{item.proficiency && <span className="boutique-language-bar" role="img" aria-label={item.proficiency} title={item.proficiency}><i style={{ width: `${level}%` }} /></span>}</li>;
+    })}</ul></section>;
+    if (type === "skills") return <section className="cv-section" key={type}><h3>{label}</h3><ul className="boutique-qualities">{cv.skills.map((skill, index) => <li key={index}>{skill}</li>)}</ul></section>;
+    if (type === "experience" || type === "education") {
+      const entries = type === "experience"
+        ? cv.experience.map((item) => ({ ...item, heading: item.title, organization: item.company }))
+        : cv.education.map((item) => ({ ...item, heading: item.degree, organization: item.school }));
+      return <section className="cv-section" key={type}><h3>{label}</h3>{entries.map((item) => <div className="boutique-entry" key={item.id}>
+        <div className="boutique-entry-heading"><h4>{item.heading}</h4><time>{[item.start, item.end].filter(Boolean).join(" - ")}</time></div>
+        <p className="boutique-organization">{[item.organization, item.location].filter(Boolean).join(", ")}</p>
+        <CarelineBullets text={item.description ?? ""} />
+      </div>)}</section>;
+    }
+    return <CVSection key={type} type={type} cv={cv} label={label} />;
+  };
+  const style = {
+    "--accent": cv.design.accent, "--cv-font": cv.design.font,
+    "--space": cv.design.spacing, "--body-font-size": `${cv.design.bodyFontSize}px`, "--name-font-size": `${cv.design.nameFontSize}px`,
+    "--boutique-sidebar-width": `${template.sidebarWidth ?? 33.5}%`,
+    "--boutique-sidebar-color": cv.design.secondaryAccent ?? "#282830",
+    "--boutique-background": cv.design.background ?? "#ffffff",
+  } as React.CSSProperties;
+  return <article className={`cv-document cv-careline cv-boutique${template.sidebarPosition === "right" ? " boutique-sidebar-right" : ""}`} style={style}>
+    {(cv.fullName || cv.title || contact.length > 0) && <header className="boutique-header">{cv.fullName && <h1>{cv.fullName}</h1>}{cv.title && <p>{cv.title}</p>}{contact.length > 0 && <div className="boutique-contact">{contact.map(({ label, value, icon: Icon }) => <div key={label}><Icon aria-hidden="true" /><span className="sr-only">{label}: </span><span>{value}</span></div>)}</div>}</header>}
+    <div className="boutique-columns"><aside className="boutique-sidebar">{sidebarSections.filter((section) => sections.includes(section)).map(renderSection)}</aside><div className="boutique-main">{sections.filter((section) => !sidebarSections.includes(section)).map(renderSection)}</div></div>
+  </article>;
+}
+function IvoryCV({ cv, template, sections }: { cv: CVData; template: Template; sections: string[] }) {
+  const sidebarSections = template.sidebarSections ?? ["summary", "skills", "languages", "certifications"];
+  const renderSection = (type: string) => {
+    const content = cv[type as keyof CVData];
+    if (typeof content === "string" ? !content.trim() : !Array.isArray(content) || !content.length) return null;
+    const label = template.sectionLabels?.[type] || sectionTitles[type];
+    if (type === "skills") return <section className="cv-section" key={type}><h3>{label}</h3><ul className="ivory-skills">{cv.skills.map((skill, index) => <li key={index}>{skill}</li>)}</ul></section>;
+    if (type === "experience" || type === "education") {
+      const entries = type === "experience"
+        ? cv.experience.map((item) => ({ ...item, heading: item.title, subtitle: [item.company, item.location].filter(Boolean).join(" - ") }))
+        : cv.education.map((item) => ({ ...item, heading: item.school, subtitle: [item.location, item.degree].filter(Boolean).join(": ") }));
+      return <section className="cv-section" key={type}><h3>{label}</h3>{entries.map((item) => <div className="ivory-entry" key={item.id}>
+        <div className="ivory-entry-heading"><h4>{item.heading}</h4><time>{[item.start, item.end].filter(Boolean).map((date, index) => <span key={index}>{date}</span>)}</time></div>
+        <p>{item.subtitle}</p><CarelineBullets text={item.description ?? ""} />
+      </div>)}</section>;
+    }
+    return <CVSection key={type} type={type} cv={cv} label={label} />;
+  };
+  const style = {
+    "--accent": cv.design.accent, "--cv-font": cv.design.font,
+    "--space": cv.design.spacing, "--body-font-size": `${cv.design.bodyFontSize}px`, "--name-font-size": `${cv.design.nameFontSize}px`,
+    "--ivory-sidebar-width": `${template.sidebarWidth ?? 34.5}%`, "--ivory-ink": cv.design.secondaryAccent ?? "#17151d", "--ivory-background": cv.design.background ?? "#fff",
+  } as React.CSSProperties;
+  const showPhoto = template.showPhoto !== false && Boolean(cv.photo);
+  const contact = [cv.location, cv.email, cv.phone, cv.website, cv.linkedin].filter(Boolean);
+  return <article className={`cv-document cv-careline cv-ivory${template.sidebarPosition === "right" ? " ivory-sidebar-right" : ""}`} style={style}>
+    {(showPhoto || cv.fullName || cv.title || contact.length > 0) && <header className={`ivory-header${showPhoto ? "" : " ivory-no-photo"}`}>
+      {showPhoto && <div className={`ivory-photo photo-${template.photoShape ?? "square"}`}><img src={cv.photo} alt={`${cv.fullName || "Your"} profile`} /></div>}
+      {(cv.fullName || cv.title || contact.length > 0) && <div className="ivory-intro">{cv.fullName && <h1>{cv.fullName}</h1>}{cv.title && <h2>{cv.title}</h2>}{contact.length > 0 && <div className="ivory-contact">{contact.map((item, index) => <span key={index}>{item}</span>)}</div>}</div>}
+    </header>}
+    <div className="ivory-columns"><aside className="ivory-sidebar">{sections.filter((section) => sidebarSections.includes(section)).map(renderSection)}</aside><div className="ivory-main">{sections.filter((section) => !sidebarSections.includes(section)).map(renderSection)}</div></div>
+  </article>;
+}
+function PortraitCV({ cv, template, sections }: { cv: CVData; template: Template; sections: string[] }) {
+  const sidebarSections = template.sidebarSections ?? ["skills", "languages"];
+  const renderSection = (section: string) => {
+    const content = cv[section as keyof CVData];
+    if (typeof content === "string" ? !content.trim() : !Array.isArray(content) || !content.length) return null;
+    return <PortraitSection key={section} type={section} cv={cv} label={template.sectionLabels?.[section]} />;
+  };
+  return <article className="cv-document cv-portrait" style={{ "--portrait-sidebar-width": `${template.sidebarWidth ?? 38}%` } as React.CSSProperties}>
+    <aside className="portrait-sidebar">
+      {template.showPhoto !== false && cv.photo && <div className="portrait-photo"><img src={cv.photo} alt={`${cv.fullName || "Your"} profile`} /></div>}
+      {sections.filter((section) => sidebarSections.includes(section)).map(renderSection)}
+    </aside>
+    <div className="portrait-main">
+      {(cv.fullName || cv.title || cv.email || cv.location || cv.phone || cv.website || cv.linkedin) && <header className="portrait-header">
+        {cv.fullName && <h1>{cv.fullName}</h1>}
+        {cv.title && <p>{cv.title}</p>}
+        <div className="portrait-contact">
+          {cv.email && <span><Mail aria-hidden="true" /><span>{cv.email}</span></span>}
+          {cv.location && <span><MapPin aria-hidden="true" /><span>{cv.location}</span></span>}
+          {cv.phone && <span><Phone aria-hidden="true" /><span>{cv.phone}</span></span>}
+          {[cv.website, cv.linkedin].filter(Boolean).map((link) => <span key={link}>{link}</span>)}
+        </div>
+      </header>}
+      {sections.filter((section) => !sidebarSections.includes(section)).map(renderSection)}
+    </div>
+  </article>;
+}
+function PortraitSection({ type, cv, label }: { type: string; cv: CVData; label?: string }) {
+  const heading = label || (type === "summary" ? "Summary" : sectionTitles[type]);
+  if (type === "skills") return <section className="cv-section"><h3>{heading}</h3><ul className="portrait-skills">{cv.skills.map((skill, index) => <li key={index}>{skill}</li>)}</ul></section>;
+  if (type === "languages") return <section className="cv-section"><h3>{heading}</h3><ul className="portrait-languages">{cv.languages.map((item) => <li key={item.id}>{item.language}{item.proficiency && <span>{item.proficiency}</span>}</li>)}</ul></section>;
+  if (type === "experience") return <section className="cv-section"><h3>{heading}</h3>{cv.experience.map((item) => <div className="portrait-entry" key={item.id}><h4>{[item.title, item.company, item.location].filter(Boolean).join(", ")}</h4><time>{[item.start, item.end].filter(Boolean).join(" – ")}</time>{item.description.trim() && <ul>{item.description.split(/\r?\n/).map((line) => line.trim().replace(/^[•*\-]\s*/, "")).filter(Boolean).map((line, index) => <li key={index}>{line}</li>)}</ul>}</div>)}</section>;
+  if (type === "education") return <section className="cv-section"><h3>{heading}</h3>{cv.education.map((item) => <div className="portrait-entry" key={item.id}><h4>{[item.degree, item.school, item.location].filter(Boolean).join(", ")}</h4><time>{[item.start, item.end].filter(Boolean).join(" – ")}</time><CarelineBullets text={item.description ?? ""} /></div>)}</section>;
+  return <CVSection type={type} cv={cv} label={heading} />;
 }
 function CVSection({ type, cv, label }: { type: string; cv: CVData; label?: string }) {
+  if (!hasSectionContent(cv, type)) return null;
   const heading = label || sectionTitles[type];
   if (type === "summary")
     return (
       <section className="cv-section">
-        <h3>{sectionTitles[type]}</h3>
+        <h3>{heading}</h3>
         <p>{cv.summary}</p>
       </section>
     );
   if (type === "experience")
     return (
       <section className="cv-section">
-        <h3>Experience</h3>
+        <h3>{heading}</h3>
         {cv.experience.map((e) => (
           <div className="cv-entry" key={e.id}>
             <div>
-              <h4>{e.title}</h4>
-              <b>
-                {e.company} <span>·</span> {e.location}
-              </b>
+              {e.title && <h4>{e.title}</h4>}
+              {(e.company || e.location) && <b>{[e.company, e.location].filter(Boolean).join(" · ")}</b>}
             </div>
-            <time>
-              {e.start} — {e.end}
-            </time>
-            <p>{e.description}</p>
+            {(e.start || e.end) && <time>{[e.start, e.end].filter(Boolean).join(" — ")}</time>}
+            {e.description && <p>{e.description}</p>}
           </div>
         ))}
       </section>
@@ -1563,18 +1782,15 @@ function CVSection({ type, cv, label }: { type: string; cv: CVData; label?: stri
   if (type === "education")
     return (
       <section className="cv-section">
-        <h3>Education</h3>
+        <h3>{heading}</h3>
         {cv.education.map((e) => (
           <div className="cv-entry compact-entry" key={e.id}>
             <div>
-              <h4>{e.degree}</h4>
-              <b>
-                {e.school} <span>·</span> {e.location}
-              </b>
+              {e.degree && <h4>{e.degree}</h4>}
+              {(e.school || e.location) && <b>{[e.school, e.location].filter(Boolean).join(" · ")}</b>}
             </div>
-            <time>
-              {e.start} — {e.end}
-            </time>
+            {(e.start || e.end) && <time>{[e.start, e.end].filter(Boolean).join(" — ")}</time>}
+            {e.description && <p>{e.description}</p>}
           </div>
         ))}
       </section>
@@ -1582,7 +1798,7 @@ function CVSection({ type, cv, label }: { type: string; cv: CVData; label?: stri
   if (type === "skills")
     return (
       <section className="cv-section">
-        <h3>Skills</h3>
+        <h3>{heading}</h3>
         <div className="cv-skills">
           {cv.skills.map((s) => (
             <span key={s}>{s}</span>
@@ -1591,17 +1807,17 @@ function CVSection({ type, cv, label }: { type: string; cv: CVData; label?: stri
       </section>
     );
   if (type === "projects")
-    return <section className="cv-section"><h3>Selected projects</h3>{cv.projects.map((p) => <div className="cv-entry project" key={p.id}><h4>{p.name}</h4><p>{p.description}</p><b>{p.tech}</b>{p.url && <span className="cv-link">{p.url}</span>}</div>)}</section>;
+    return <section className="cv-section"><h3>{heading}</h3>{cv.projects.map((p) => <div className="cv-entry project" key={p.id}>{p.name && <h4>{p.name}</h4>}{p.description && <p>{p.description}</p>}{p.tech && <b>{p.tech}</b>}{p.url && <span className="cv-link">{p.url}</span>}{p.github && <span className="cv-link">{p.github}</span>}</div>)}</section>;
   if (type === "certifications")
-    return <section className="cv-section"><h3>Certifications</h3>{cv.certifications.map((item) => <div className="cv-entry compact-entry" key={item.id}><div><h4>{item.name}</h4><b>{item.organization}</b>{item.url && <span className="cv-link">{item.url}</span>}</div><time>{item.date}</time></div>)}</section>;
+    return <section className="cv-section"><h3>{heading}</h3>{cv.certifications.map((item) => <div className="cv-entry compact-entry" key={item.id}><div>{item.name && <h4>{item.name}</h4>}{item.organization && <b>{item.organization}</b>}{item.url && <span className="cv-link">{item.url}</span>}</div>{item.date && <time>{item.date}</time>}</div>)}</section>;
   if (type === "languages")
-    return <section className="cv-section"><h3>Languages</h3><div className="cv-skills">{cv.languages.map((item) => <span key={item.id}>{item.language} · {item.proficiency}</span>)}</div></section>;
+    return <section className="cv-section"><h3>{heading}</h3><div className="cv-skills">{cv.languages.map((item) => <span key={item.id}>{[item.language, item.proficiency].filter(Boolean).join(" · ")}</span>)}</div></section>;
   if (type === "achievements")
-    return <section className="cv-section"><h3>Achievements</h3><ul className="cv-list">{cv.achievements.map((item) => <li key={item.id}>{item.text}</li>)}</ul></section>;
+    return <section className="cv-section"><h3>{heading}</h3><ul className="cv-list">{cv.achievements.map((item) => <li key={item.id}>{item.text}</li>)}</ul></section>;
   if (type === "volunteer")
-    return <section className="cv-section"><h3>Volunteer experience</h3>{cv.volunteer.map((item) => <div className="cv-entry" key={item.id}><div><h4>{item.role}</h4><b>{item.organization} <span>·</span> {item.location}</b></div><time>{item.start} — {item.end}</time><p>{item.description}</p></div>)}</section>;
+    return <section className="cv-section"><h3>{heading}</h3>{cv.volunteer.map((item) => <div className="cv-entry" key={item.id}><div>{item.role && <h4>{item.role}</h4>}{(item.organization || item.location) && <b>{[item.organization, item.location].filter(Boolean).join(" · ")}</b>}</div>{(item.start || item.end) && <time>{[item.start, item.end].filter(Boolean).join(" — ")}</time>}{item.description && <p>{item.description}</p>}</div>)}</section>;
   if (type === "references")
-    return <section className="cv-section"><h3>References</h3>{cv.references.map((item) => <div className="cv-entry compact-entry" key={item.id}><div><h4>{item.name}</h4><b>{item.relationship}</b><p>{[item.email, item.phone].filter(Boolean).join(" · ")}</p></div></div>)}</section>;
+    return <section className="cv-section"><h3>{heading}</h3>{cv.references.map((item) => <div className="cv-entry compact-entry" key={item.id}><div>{item.name && <h4>{item.name}</h4>}{item.relationship && <b>{item.relationship}</b>}{(item.email || item.phone) && <p>{[item.email, item.phone].filter(Boolean).join(" · ")}</p>}</div></div>)}</section>;
   return null;
 }
 
@@ -1621,7 +1837,7 @@ function Dashboard({
     if (!auth) return;
     void apiRequest<{ cvCount: number; customTemplateCount: number }>("/dashboard").then(setStats).catch(() => {});
   }, [auth]);
-  const selectedTemplate = templates.find((template) => template.id === cv.template) ?? templates[0];
+  const selectedTemplate = documentTemplate(cv);
   return (
     <main className="dashboard">
       <div className="dash-welcome">

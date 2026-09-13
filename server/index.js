@@ -4,6 +4,10 @@ import cors from "cors";
 import express from "express";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
+import carelineTemplate from "../src/templates/careline.json" with { type: "json" };
+import saleslineTemplate from "../src/templates/salesline.json" with { type: "json" };
+import boutiqueTemplate from "../src/templates/boutique.json" with { type: "json" };
+import ivoryTemplate from "../src/templates/ivory.json" with { type: "json" };
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -183,22 +187,16 @@ const seedAdmin = async () => {
     console.log(`Created local admin account: ${email}`);
   }
 };
-const systemTemplates = [
-  ["custom", "Blank Canvas", "Custom", "A flexible foundation for your own visual style.", "custom", false],
-  ["classic", "Meridian", "Professional", "A formal, single-column standard for established industries.", "classic", true],
-  ["modern", "Atlas", "Modern", "Clean editorial structure with a confident modern accent.", "modern", true],
-  ["executive", "Boardroom", "Executive", "An executive profile built around leadership and impact.", "executive", false],
-  ["creative", "Studio", "Creative", "A polished portfolio-inspired layout for creative work.", "creative", false],
-  ["tech", "Circuit", "Professional", "Structured, data-forward design for product and technology.", "tech", true],
-  ["ats", "Essential ATS", "ATS-Friendly", "A clear, parseable resume with no unnecessary decoration.", "ats", true],
-  ["student", "Launchpad", "Student", "Education and projects first for students and early careers.", "student", true],
-  ["elegant", "Maison", "Minimal", "Refined typography and breathing room for thoughtful roles.", "elegant", false],
-  ["corporate", "Slate", "Professional", "A structured corporate format for finance, consulting, and ops.", "corporate", true],
-  ["twocolumn", "Frame", "Experienced", "A balanced two-column profile with a focused information rail.", "twocolumn", false],
-];
-const seedSystemTemplates = async () => Promise.all(systemTemplates.map(([id, name, category, description, style, ats]) => SystemTemplate.updateOne(
-  { templateId: id }, { $setOnInsert: { templateId: id, template: { id, name, category, description, style, ats } } }, { upsert: true },
+// Remove the former bundled catalog from databases initialized by earlier versions.
+// User-created templates use saved-/admin- IDs and remain available.
+const removeBundledTemplates = () => SystemTemplate.deleteMany({
+  templateId: { $in: ["portrait", "custom", "classic", "modern", "executive", "creative", "tech", "ats", "student", "elegant", "corporate", "twocolumn"] },
+});
+const seedSystemTemplates = () => Promise.all([carelineTemplate, saleslineTemplate, boutiqueTemplate, ivoryTemplate].map((template) => SystemTemplate.updateOne(
+  { templateId: template.id },
+  { $setOnInsert: { templateId: template.id, template } },
+  { upsert: true },
 )));
 mongoose.connect(mongoUri)
-  .then(async () => { await seedAdmin(); await seedSystemTemplates(); app.listen(port, () => console.log(`CVForge API listening on http://localhost:${port}`)); })
+  .then(async () => { await seedAdmin(); await removeBundledTemplates(); await seedSystemTemplates(); app.listen(port, () => console.log(`CVForge API listening on http://localhost:${port}`)); })
   .catch((error) => { console.error("Could not connect to MongoDB:", error.message); process.exit(1); });

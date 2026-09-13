@@ -1,0 +1,32 @@
+{
+  "id": "salesline",
+  "name": "Salesline",
+  "category": "Sales & Retail",
+  "description": "A burgundy sidebar with a centered introduction, contact icons, skills, and language ratings. A clear career timeline for sales, retail, and customer service professionals.",
+  "style": "salesline",
+  "status": "published",
+  "version": 1,
+  "layout": "two-column",
+  "sidebarPosition": "left",
+  "sidebarWidth": 33.5,
+  "headerAlign": "center",
+  "showPhoto": false,
+  "pageSize": "a4",
+  "pageMargin": 0,
+  "density": "compact",
+  "divider": "line",
+  "skillStyle": "plain",
+  "contactStyle": "stacked",
+  "sidebarSections": ["skills", "languages", "certifications"],
+  "sectionLabels": { "experience": "Employment", "summary": "Profile" },
+  "design": {
+    "accent": "#900e50",
+    "secondaryAccent": "#900e50",
+    "background": "#ffffff",
+    "font": "Arial",
+    "headingFont": "Arial",
+    "spacing": 1,
+    "bodyFontSize": 11,
+    "nameFontSize": 16
+  }
+}
