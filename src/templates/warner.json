@@ -1,0 +1,33 @@
+{
+  "id": "warner",
+  "name": "Warner",
+  "category": "Professional",
+  "description": "An airy two-column layout with a sky-blue accent, circular portrait, letter-spaced name, and fine section rules. Designed for accounting and business careers.",
+  "style": "warner",
+  "status": "published",
+  "version": 1,
+  "layout": "two-column",
+  "sidebarPosition": "left",
+  "sidebarWidth": 34.5,
+  "headerAlign": "left",
+  "showPhoto": true,
+  "photoShape": "circle",
+  "pageSize": "a4",
+  "pageMargin": 50,
+  "density": "compact",
+  "divider": "line",
+  "skillStyle": "plain",
+  "contactStyle": "inline",
+  "sidebarSections": ["summary", "education", "skills", "languages"],
+  "sectionLabels": { "summary": "Summary", "languages": "Language" },
+  "design": {
+    "accent": "#b9e0f6",
+    "secondaryAccent": "#404040",
+    "background": "#ffffff",
+    "font": "DM Sans",
+    "headingFont": "DM Sans",
+    "spacing": 1,
+    "bodyFontSize": 10,
+    "nameFontSize": 34
+  }
+}

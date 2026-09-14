@@ -42,6 +42,7 @@ import saleslineTemplate from "./templates/salesline.json";
 import boutiqueTemplate from "./templates/boutique.json";
 import ivoryTemplate from "./templates/ivory.json";
 import mercadoTemplate from "./templates/mercado.json";
+import warnerTemplate from "./templates/warner.json";
 
 type Experience = {
   id: string;
@@ -221,7 +222,7 @@ const documentTemplate = (cv: CVData): Template => cv.templateConfig ?? bundledT
   description: "",
   style: cv.template || "custom",
 };
-const bundledTemplates: Template[] = [carelineTemplate as Template, saleslineTemplate as Template, boutiqueTemplate as Template, ivoryTemplate as Template, mercadoTemplate as Template];
+const bundledTemplates: Template[] = [carelineTemplate as Template, saleslineTemplate as Template, boutiqueTemplate as Template, ivoryTemplate as Template, mercadoTemplate as Template, warnerTemplate as Template];
 const categories = [
   "All",
   "Professional",
@@ -805,7 +806,7 @@ function Templates({
   );
 }
 function TemplateThumb({ cv, template }: { cv: CVData; template: Template }) {
-  if (["careline", "salesline", "boutique", "ivory", "mercado"].includes(template.style)) return <TimelineThumbnail cv={cv} template={template} />;
+  if (["careline", "salesline", "boutique", "ivory", "mercado", "warner"].includes(template.style)) return <TimelineThumbnail cv={cv} template={template} />;
   return (
     <div className={"template-thumb " + template.style} style={{ "--template-accent": template.design?.accent ?? "#514ed0" } as React.CSSProperties}>
       <ThumbDesign cv={cv} style={template.style} />
@@ -1509,6 +1510,7 @@ function CVPreview({ cv: document, template }: { cv: CVData; template?: Template
   const cv = cvDisplayData(document);
   const t = template ?? documentTemplate(cv);
   const activeSections = (template ? template.sections ?? cv.sections : cv.sections).filter((section) => hasSectionContent(cv, section));
+  if (t.style === "warner") return <WarnerCV cv={cv} template={t} sections={activeSections} />;
   if (t.style === "mercado") return <MercadoCV cv={cv} template={t} sections={activeSections} />;
   if (t.style === "ivory") return <IvoryCV cv={cv} template={t} sections={activeSections} />;
   if (t.style === "boutique") return <BoutiqueCV cv={cv} template={t} sections={activeSections} />;
@@ -1532,7 +1534,30 @@ function CVPreview({ cv: document, template }: { cv: CVData; template?: Template
 }
 // Sample content is used only for an empty gallery preview, never saved to a CV.
 function templatePreviewData(cv: CVData, template: Template): CVData {
-  if (!["careline", "salesline", "boutique", "ivory", "mercado"].includes(template.style) || cv.fullName || cv.title || cv.summary || cv.email || cv.phone || cv.location || cv.website || cv.linkedin || cv.photo || initialCV.sections.some((key) => Array.isArray(cv[key as keyof CVData]) && (cv[key as keyof CVData] as unknown[]).length)) return cv;
+  if (!["careline", "salesline", "boutique", "ivory", "mercado", "warner"].includes(template.style) || cv.fullName || cv.title || cv.summary || cv.email || cv.phone || cv.location || cv.website || cv.linkedin || cv.photo || initialCV.sections.some((key) => Array.isArray(cv[key as keyof CVData]) && (cv[key as keyof CVData] as unknown[]).length)) return cv;
+  if (template.style === "warner") return {
+    ...initialCV,
+    fullName: "Emaa Warner", title: "Accounting Executive",
+    phone: "123-456-7890", email: "hello@example.com", website: "www.example.com",
+    photo: templatePreviewData(initialCV, mercadoTemplate as Template).photo,
+    summary: "Highly motivated and detail-oriented accounting professional with strong experience in financial reporting, bookkeeping, and data analysis. Skilled in preparing financial statements, managing accounts payable and receivable, and performing reconciliations with a high level of accuracy. Known for strong analytical thinking, problem-solving abilities, and maintaining compliance with accounting standards.",
+    education: [
+      { id: "warner-education-1", degree: "Bachelor of Marketing", school: "Wardiere University", location: "", start: "2016", end: "2020" },
+      { id: "warner-education-2", degree: "BA Sales and Commerce", school: "Wardiere University", location: "", start: "2020", end: "2023" },
+    ],
+    skills: ["Client Acquisition", "B2B Sales", "Negotiation", "Sales Strategies", "Negotiation Skills", "Problem-Solving", "Time Management", "Networking"],
+    languages: [{ id: "warner-en", language: "English", proficiency: "" }, { id: "warner-de", language: "Germany", proficiency: "basic" }, { id: "warner-ar", language: "Arabic", proficiency: "basic" }],
+    experience: [
+      { id: "warner-job-1", title: "Accounting Executive", company: "Arowwai Industries", location: "123 Anywhere St., Any City", start: "2020", end: "2023", description: "Prospected and qualified leads through cold calling, email campaigns, and networking events.\nIncreased sales by 20% by implementing effective upselling and cross-selling strategies.\nMaintained up-to-date knowledge of product features and benefits to provide accurate information to clients.\nCollaborated with the marketing team to develop targeted sales materials and promotional offers.\nProvided exceptional customer service, addressing inquiries and resolving issues in a timely manner." },
+      { id: "warner-job-2", title: "Accountant", company: "Arowwai Industries", location: "123 Anywhere St., Any City", start: "2019", end: "2021", description: "Prospected and qualified leads through cold calling, email campaigns, and networking events.\nIncreased sales by 20% by implementing effective upselling and cross-selling strategies.\nMaintained up-to-date knowledge of product features and benefits to provide accurate information to clients.\nCollaborated with the marketing team to develop targeted sales materials and promotional offers." },
+      { id: "warner-job-3", title: "Accounts Assistant", company: "Borcelle Industries", location: "123 Anywhere St., Any City", start: "2019", end: "2021", description: "Prospected and qualified leads through cold calling, email campaigns, and networking events.\nIncreased sales by 20% by implementing effective upselling and cross-selling strategies." },
+    ],
+    references: [
+      { id: "warner-reference-1", name: "Bailey Dupont", relationship: "Wardiere Inc. / CEO", phone: "123-456-7890", email: "bailey@example.com" },
+      { id: "warner-reference-2", name: "Harumi Kobayashi", relationship: "Wardiere Inc. / CEO", phone: "123-456-7890", email: "harumi@example.com" },
+    ],
+    design: { ...initialCV.design, ...template.design },
+  };
   if (template.style === "mercado") return {
     ...initialCV,
     fullName: "Isabel Mercado", title: "Marketing Manager",
@@ -1729,6 +1754,55 @@ function BoutiqueCV({ cv, template, sections }: { cv: CVData; template: Template
   return <article className={`cv-document cv-careline cv-boutique${template.sidebarPosition === "right" ? " boutique-sidebar-right" : ""}`} style={style}>
     {(cv.fullName || cv.title || contact.length > 0) && <header className="boutique-header">{cv.fullName && <h1>{cv.fullName}</h1>}{cv.title && <p>{cv.title}</p>}{contact.length > 0 && <div className="boutique-contact">{contact.map(({ label, value, icon: Icon }) => <div key={label}><Icon aria-hidden="true" /><span className="sr-only">{label}: </span><span>{value}</span></div>)}</div>}</header>}
     <div className="boutique-columns"><aside className="boutique-sidebar">{sidebarSections.filter((section) => sections.includes(section)).map(renderSection)}</aside><div className="boutique-main">{sections.filter((section) => !sidebarSections.includes(section)).map(renderSection)}</div></div>
+  </article>;
+}
+function WarnerCV({ cv, template, sections }: { cv: CVData; template: Template; sections: string[] }) {
+  const sidebarSections = template.sidebarSections ?? ["summary", "education", "skills", "languages"];
+  const renderSection = (type: string) => {
+    const label = template.sectionLabels?.[type] || sectionTitles[type];
+    if (type === "experience" || type === "education") {
+      const entries = type === "experience"
+        ? cv.experience.map((item) => ({ ...item, heading: item.title, organization: item.company }))
+        : cv.education.map((item) => ({ ...item, heading: item.degree, organization: item.school }));
+      return <section className={`cv-section warner-${type}`} key={type}><h3>{label}</h3>{entries.map((item) => <div className="warner-entry" key={item.id}>
+        <div className="warner-entry-heading">{item.heading && <h4>{item.heading}</h4>}{type === "experience" && (item.start || item.end) && <time>{[item.start, item.end].filter(Boolean).join(" – ")}</time>}</div>
+        {(item.organization || item.location) && <p className="warner-organization">{[item.organization, item.location].filter(Boolean).join(" | ")}</p>}
+        {type === "education" && (item.start || item.end) && <time>{[item.start, item.end].filter(Boolean).join(" – ")}</time>}
+        <CarelineBullets text={item.description ?? ""} />
+      </div>)}</section>;
+    }
+    if (type === "skills" || type === "languages") {
+      const items = type === "skills" ? cv.skills : cv.languages.map((item) => `${item.language}${item.proficiency ? ` (${item.proficiency})` : ""}`);
+      return <section className="cv-section" key={type}><h3>{label}</h3><ul className="warner-list">{items.map((item, index) => <li key={index}>{item}</li>)}</ul></section>;
+    }
+    if (type === "references") return <section className="cv-section" key={type}><h3>{label}</h3><div className="warner-references">{cv.references.map((item) => <div key={item.id}>
+      {item.name && <h4>{item.name}</h4>}{item.relationship && <p>{item.relationship}</p>}
+      {item.phone && <p><b>Phone:</b> {item.phone}</p>}{item.email && <p><b>Email:</b> {item.email}</p>}
+    </div>)}</div></section>;
+    return <CVSection key={type} type={type} cv={cv} label={label} />;
+  };
+  const contact = [
+    { label: "Phone", value: cv.phone, icon: Phone }, { label: "Email", value: cv.email, icon: Mail },
+    { label: "Website", value: cv.website, icon: FileText }, { label: "Address", value: cv.location, icon: MapPin },
+    { label: "LinkedIn", value: cv.linkedin, icon: UserRound },
+  ].filter((item) => item.value);
+  const showPhoto = template.showPhoto !== false && Boolean(cv.photo);
+  const style = {
+    "--accent": cv.design.accent, "--cv-font": cv.design.font, "--cv-heading-font": cv.design.headingFont ?? cv.design.font,
+    "--space": cv.design.spacing, "--body-font-size": `${cv.design.bodyFontSize}px`, "--name-font-size": `${cv.design.nameFontSize}px`,
+    "--warner-sidebar-width": `${template.sidebarWidth ?? 34.5}%`, "--warner-ink": cv.design.secondaryAccent ?? "#404040", "--warner-background": cv.design.background ?? "#fff",
+  } as React.CSSProperties;
+  return <article className={`cv-document cv-careline cv-warner${template.sidebarPosition === "right" ? " warner-sidebar-right" : ""}`} style={style}>
+    <div className="warner-top-accent" aria-hidden="true" />
+    {(showPhoto || cv.fullName || cv.title || contact.length > 0) && <header className={`warner-header${showPhoto ? "" : " warner-no-photo"}`}>
+      {showPhoto && <div className={`warner-photo photo-${template.photoShape ?? "circle"}`}><img src={cv.photo} alt={`${cv.fullName || "Your"} profile`} /></div>}
+      {(cv.fullName || cv.title || contact.length > 0) && <div className="warner-identity">
+        {cv.fullName && <h1>{cv.fullName}</h1>}{cv.title && <p>{cv.title}</p>}
+        {contact.length > 0 && <div className="warner-contact">{contact.map(({ label, value, icon: Icon }) => <span key={label}><Icon aria-hidden="true" /><span className="sr-only">{label}: </span><span>{value}</span></span>)}</div>}
+      </div>}
+    </header>}
+    <div className="warner-columns"><aside className="warner-sidebar">{sections.filter((section) => sidebarSections.includes(section)).map(renderSection)}</aside><div className="warner-main">{sections.filter((section) => !sidebarSections.includes(section)).map(renderSection)}</div></div>
+    <div className="warner-footer" aria-hidden="true" />
   </article>;
 }
 function MercadoCV({ cv, template, sections }: { cv: CVData; template: Template; sections: string[] }) {
