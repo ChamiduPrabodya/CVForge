@@ -16,7 +16,8 @@ const mongoUri = process.env.MONGODB_URI || "mongodb://localhost:27017/cvforge";
 const jwtSecret = process.env.JWT_SECRET || "cvforge-development-secret";
 
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || true }));
-app.use(express.json({ limit: "3mb" }));
+// Allow a 10 MB original upload encoded as a data URL plus its cropped preview.
+app.use(express.json({ limit: "16mb" }));
 
 const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },

@@ -81,6 +81,7 @@ type CVData = {
   website: string;
   linkedin: string;
   photo: string;
+  originalPhoto?: string;
   summary: string;
   experience: Experience[];
   education: Education[];
@@ -186,6 +187,7 @@ const initialCV: CVData = {
   website: "",
   linkedin: "",
   photo: "",
+  originalPhoto: "",
   summary: "",
   experience: [],
   education: [],
@@ -368,8 +370,15 @@ function App() {
     }).then(() => notify("Custom template saved to MongoDB.")).catch(() => notify("Custom template saved locally — MongoDB is unavailable."));
   };
   const save = async () => {
-    localStorage.setItem("cvforge-doc", JSON.stringify(cv));
-    if (!auth) { notify("CV saved locally. Log in to sync it to MongoDB."); return; }
+    let savedLocally = false;
+    try {
+      localStorage.setItem("cvforge-doc", JSON.stringify(cv));
+      savedLocally = true;
+    } catch {}
+    if (!auth) {
+      notify(savedLocally ? "CV saved locally. Log in to sync it to MongoDB." : "Browser storage is full. Use a smaller photo or log in to save your CV.");
+      return;
+    }
     try {
       await apiRequest(`/cvs/${encodeURIComponent(cv.id)}`, {
         method: "PUT",
@@ -377,7 +386,7 @@ function App() {
       });
       notify("CV saved to MongoDB.");
     } catch {
-      notify("CV saved locally — MongoDB is unavailable.");
+      notify(savedLocally ? "CV saved locally — MongoDB is unavailable." : "Your CV could not be saved. Please try again or use a smaller photo.");
     }
   };
   return (
@@ -844,6 +853,7 @@ function Builder({
     [bodyFontSize, setBodyFontSize] = useState(cv.design?.bodyFontSize ?? 11),
     [nameFontSize, setNameFontSize] = useState(cv.design?.nameFontSize ?? 28),
     [photoToEdit, setPhotoToEdit] = useState(""),
+    photoReaderRef = useRef<FileReader | null>(null),
     [zoom, setZoom] = useState(1),
     previewRef = useRef<HTMLDivElement>(null),
     previewAreaRef = useRef<HTMLElement>(null);
@@ -871,11 +881,18 @@ function Builder({
       notify("Please choose a photo smaller than 10 MB.");
       return;
     }
-    setPhotoToEdit(URL.createObjectURL(file));
+    photoReaderRef.current?.abort();
+    const reader = new FileReader();
+    photoReaderRef.current = reader;
+    reader.onload = () => {
+      if (typeof reader.result === "string") setPhotoToEdit(reader.result);
+    };
+    reader.onerror = () => notify("This photo could not be read. Please try again.");
+    reader.readAsDataURL(file);
   };
   useEffect(() => () => {
-    if (photoToEdit.startsWith("blob:")) URL.revokeObjectURL(photoToEdit);
-  }, [photoToEdit]);
+    photoReaderRef.current?.abort();
+  }, []);
   const addExp = () => {
     update("experience", [
       ...cv.experience,
@@ -1060,10 +1077,10 @@ function Builder({
             <div className="photo-upload">
               {cv.photo ? <img src={cv.photo} alt="Profile" /> : <span>{cv.fullName.split(" ").map((part) => part[0]).join("")}</span>}
               <label className="upload-control"><Upload size={14} /> {cv.photo ? "Replace photo" : "Upload profile photo"}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => { uploadPhoto(e.target.files?.[0]); e.target.value = ""; }} /></label>
-              {cv.photo && <button type="button" className="edit-photo" onClick={() => setPhotoToEdit(cv.photo)}><PenLine size={14} /> Edit photo</button>}
-              {cv.photo && <button className="remove-photo" onClick={() => update("photo", "")}>Remove</button>}
+              {cv.photo && <button type="button" className="edit-photo" onClick={() => setPhotoToEdit(cv.originalPhoto || cv.photo)}><PenLine size={14} /> Edit photo</button>}
+              {cv.photo && <button className="remove-photo" onClick={() => { photoReaderRef.current?.abort(); setPhotoToEdit(""); setCV((document) => ({ ...document, photo: "", originalPhoto: "" })); }}>Remove</button>}
             </div>
-            {photoToEdit && <PhotoEditor key={photoToEdit} source={photoToEdit} onClose={() => setPhotoToEdit("")} onApply={(photo) => { update("photo", photo); setPhotoToEdit(""); notify("Profile photo updated."); }} />}
+            {photoToEdit && <PhotoEditor key={photoToEdit} source={photoToEdit} onClose={() => setPhotoToEdit("")} onApply={(photo) => { setCV((document) => ({ ...document, photo, originalPhoto: photoToEdit })); setPhotoToEdit(""); notify("Profile photo updated."); }} />}
           </Accordion>
           <Accordion
             title="Professional summary"
