@@ -18,6 +18,7 @@ import {
   MapPin,
   Menu,
   MoreHorizontal,
+  Moon,
   Palette,
   PenLine,
   Phone,
@@ -28,6 +29,7 @@ import {
   Search,
   Settings2,
   Sparkles,
+  Sun,
   Trash2,
   Upload,
   UserRound,
@@ -265,11 +267,18 @@ function App() {
     [cv, setCV] = useState<CVData>(initialCV),
     [toast, setToast] = useState(""),
     [mobile, setMobile] = useState(false),
+    [theme, setTheme] = useState<"light" | "dark">(() => {
+      try { return (localStorage.getItem("cvforge-theme") ?? localStorage.getItem("cvforge-home-theme")) === "dark" ? "dark" : "light"; } catch { return "light"; }
+    }),
     [customTemplates, setCustomTemplates] = useState<Template[]>([]),
     [systemTemplates, setSystemTemplates] = useState<Template[]>(bundledTemplates),
     [auth, setAuth] = useState<AuthUser | null>(() => {
       try { return JSON.parse(localStorage.getItem("cvforge-auth-user") || "null"); } catch { return null; }
     });
+  useEffect(() => {
+    document.documentElement.dataset.appTheme = theme;
+    try { localStorage.setItem("cvforge-theme", theme); } catch {}
+  }, [theme]);
   useEffect(() => {
     const saved = localStorage.getItem("cvforge-doc");
     if (saved)
@@ -391,7 +400,7 @@ function App() {
     }
   };
   return (
-    <>
+    <div data-theme={theme}>
       <header className="topbar">
         <button className="brand" onClick={() => setPage("home")}>
           <span>✦</span> CVForge
@@ -410,6 +419,10 @@ function App() {
           <button onClick={() => goToPage("home")}>Pricing</button>
           {auth?.role === "admin" && <button className={page === "admin" ? "active" : ""} onClick={() => goToPage("admin")}>Admin</button>}
         </nav>
+        <div className="theme-buttons" role="group" aria-label="Appearance">
+          <button type="button" aria-label="Light mode" title="Light mode" aria-pressed={theme === "light"} onClick={() => setTheme("light")}><Sun size={16} aria-hidden="true" /><span>Light</span></button>
+          <button type="button" aria-label="Dark mode" title="Dark mode" aria-pressed={theme === "dark"} onClick={() => setTheme("dark")}><Moon size={16} aria-hidden="true" /><span>Dark</span></button>
+        </div>
         <div className="top-actions">
           {auth ? <button className="login" onClick={logout}>{auth.role === "admin" ? "Admin" : auth.email.split("@")[0]} · Log out</button> : <button className="login" onClick={() => setPage("login")}>Log in</button>}
           <button
@@ -454,7 +467,7 @@ function App() {
           {toast}
         </div>
       )}
-    </>
+    </div>
   );
 }
 
