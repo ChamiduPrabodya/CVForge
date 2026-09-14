@@ -2289,6 +2289,57 @@ textarea {
 .template-switch .template-thumb.portrait .thumb-head,
 .template-switch .template-thumb.portrait .thumb-line { display: none; }
 
+/* Mercado: circular portrait, slate rail, and understated career timelines. */
+.cv-document.cv-mercado { display: grid; grid-template-columns: var(--mercado-sidebar-width, 35%) minmax(0, 1fr); padding: 0; background: var(--mercado-background); color: var(--mercado-muted); line-height: 1.3; }
+.mercado-sidebar { min-width: 0; padding: 3.8em 0 3.8em 3.8em; background: var(--accent); color: #fff; }
+.mercado-photo { width: 10.8em; max-width: calc(100% - 2em); aspect-ratio: 1; margin: 0 auto 2.8em 1.7em; overflow: hidden; background: #dce5e3; }
+.mercado-photo.photo-circle { border-radius: 50%; }
+.mercado-photo.photo-rounded { border-radius: 1.2em; }
+.mercado-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mercado-main { min-width: 0; padding: 6.2em 1.6em 3.8em 2.2em; }
+.mercado-header { min-height: 11.4em; padding-bottom: 3em; color: var(--accent); }
+.mercado-header h1 { margin: 0; font-family: var(--cv-heading-font), Arial, sans-serif; font-size: var(--name-font-size, 38px); font-weight: 800; line-height: 1.1; letter-spacing: -.035em; }
+.mercado-header > p { margin: .15em 0 0; font-size: 1.8em; letter-spacing: .035em; }
+.cv-mercado .cv-section { margin: 0 0 calc(2.4em * var(--space, 1)); }
+.cv-mercado .cv-section h3 { margin: 0 0 .75em; padding: 0 0 .2em; border-bottom: 1px solid #9298a2; font-family: var(--cv-heading-font), Arial, sans-serif; font-size: 1.9em; font-weight: 800; line-height: 1.2; color: var(--accent); }
+.cv-mercado .mercado-sidebar .cv-section { margin-bottom: calc(3.6em * var(--space, 1)); }
+.cv-mercado .mercado-sidebar h3 { color: #fff; }
+.mercado-contact dl, .mercado-contact dd { margin: 0; }
+.mercado-contact dl { padding-right: 2em; font-size: .85em; line-height: 1.25; }
+.mercado-contact dl > div { margin-bottom: 1.9em; }
+.mercado-contact dt { font-weight: 800; }
+.mercado-contact dd { white-space: pre-line; }
+.cv-mercado :is(.mercado-skills, .mercado-languages, .mercado-achievements) ul { list-style: none; padding: 0 2em 0 0; margin: 0; }
+.cv-mercado :is(.mercado-skills, .mercado-languages) li { margin-bottom: 1.3em; font-weight: 500; }
+.mercado-achievements li { margin-bottom: 1.8em; font-size: .85em; font-weight: 700; white-space: pre-line; }
+.mercado-entry { display: grid; grid-template-columns: 36% minmax(0, 1fr); gap: 1em; margin-bottom: calc(1.4em * var(--space, 1)); break-inside: avoid; }
+.mercado-entry:not(:has(.mercado-entry-meta)), .mercado-entry:not(:has(.mercado-entry-body)) { grid-template-columns: minmax(0, 1fr); }
+.mercado-entry-meta { font-size: 1em; }
+.cv-mercado .mercado-entry-meta p { margin-top: .45em; }
+.mercado-entry-body h4 { margin: 0 0 .35em; font-size: 1.1em; font-weight: 500; color: #3c3c3c; }
+.mercado-entry-body p { font-size: .95em; line-height: 1.2; text-align: justify; }
+.mercado-references { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.8em; }
+.mercado-references > div { break-inside: avoid; }
+.mercado-references h4 { margin: 0 0 .2em; font-size: 1.15em; color: #555; }
+.cv-mercado .mercado-references p { font-size: .85em; margin-bottom: .2em; }
+.mercado-references b { font-weight: 600; color: #444; }
+.cv-mercado .mercado-sidebar :is(.cv-list, .cv-entry b, .cv-link) { color: inherit; }
+.cv-mercado .mercado-sidebar .cv-skills span { color: inherit; background: transparent; }
+.cv-mercado .mercado-sidebar .mercado-references :is(h4, b) { color: inherit; }
+.cv-mercado .mercado-sidebar .mercado-references { grid-template-columns: minmax(0, 1fr); padding-right: 2em; }
+.cv-mercado.mercado-sidebar-right { grid-template-columns: minmax(0, 1fr) var(--mercado-sidebar-width, 35%); }
+.mercado-sidebar-right .mercado-sidebar { grid-column: 2; grid-row: 1; }
+.mercado-sidebar-right .mercado-main { grid-column: 1; grid-row: 1; }
+.template-thumb.mercado { background: #e9ecf1; }
+.modal-cv .cv-document.cv-mercado { padding: 0; font-size: calc(var(--body-font-size, 10px) * .613); }
+.modal-cv .cv-mercado .mercado-header h1 { font-size: calc(var(--name-font-size, 38px) * .613); }
+.modal-cv .cv-mercado .cv-section { margin-bottom: calc(2.4em * var(--space, 1)); }
+.modal-cv .cv-mercado .cv-section h3 { font-size: 1.9em; margin-bottom: .75em; padding-bottom: .2em; }
+.modal-cv .cv-mercado .mercado-sidebar .cv-section { margin-bottom: calc(3.6em * var(--space, 1)); }
+.cv-document.cv-mercado:has(> :empty) { grid-template-columns: minmax(0, 1fr); }
+.cv-document.cv-mercado:has(> :empty) > * { grid-column: 1; grid-row: auto; }
+.cv-document.cv-mercado > :empty { display: none; }
+
 /* Unfilled content must not reserve room in the rendered CV or exports. */
 .cv-document :is(h1, h2, h4, p, b, time, .contact, .portrait-contact, .cv-entry > div):empty { display: none; }
 .cv-document .cv-entry:not(:has(> time)) { padding-right: 0; }

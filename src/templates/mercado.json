@@ -1,0 +1,33 @@
+{
+  "id": "mercado",
+  "name": "Mercado",
+  "category": "Professional",
+  "description": "A slate sidebar with a circular portrait, clean career timelines, and paired references. Ideal for marketing and business professionals.",
+  "style": "mercado",
+  "status": "published",
+  "version": 1,
+  "layout": "two-column",
+  "sidebarPosition": "left",
+  "sidebarWidth": 35,
+  "headerAlign": "left",
+  "showPhoto": true,
+  "photoShape": "circle",
+  "pageSize": "a4",
+  "pageMargin": 22,
+  "density": "compact",
+  "divider": "line",
+  "skillStyle": "plain",
+  "contactStyle": "stacked",
+  "sidebarSections": ["skills", "languages", "achievements", "certifications"],
+  "sectionLabels": { "skills": "Expertise", "languages": "Language", "achievements": "Awards" },
+  "design": {
+    "accent": "#323b4c",
+    "secondaryAccent": "#747474",
+    "background": "#ffffff",
+    "font": "Inter",
+    "headingFont": "Inter",
+    "spacing": 1,
+    "bodyFontSize": 10,
+    "nameFontSize": 38
+  }
+}

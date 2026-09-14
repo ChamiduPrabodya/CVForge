@@ -8,6 +8,7 @@ import carelineTemplate from "../src/templates/careline.json" with { type: "json
 import saleslineTemplate from "../src/templates/salesline.json" with { type: "json" };
 import boutiqueTemplate from "../src/templates/boutique.json" with { type: "json" };
 import ivoryTemplate from "../src/templates/ivory.json" with { type: "json" };
+import mercadoTemplate from "../src/templates/mercado.json" with { type: "json" };
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -192,7 +193,7 @@ const seedAdmin = async () => {
 const removeBundledTemplates = () => SystemTemplate.deleteMany({
   templateId: { $in: ["portrait", "custom", "classic", "modern", "executive", "creative", "tech", "ats", "student", "elegant", "corporate", "twocolumn"] },
 });
-const seedSystemTemplates = () => Promise.all([carelineTemplate, saleslineTemplate, boutiqueTemplate, ivoryTemplate].map((template) => SystemTemplate.updateOne(
+const seedSystemTemplates = () => Promise.all([carelineTemplate, saleslineTemplate, boutiqueTemplate, ivoryTemplate, mercadoTemplate].map((template) => SystemTemplate.updateOne(
   { templateId: template.id },
   { $setOnInsert: { templateId: template.id, template } },
   { upsert: true },
