@@ -296,10 +296,13 @@ function App() {
     } catch {}
   }, []);
   useEffect(() => {
-    void apiRequest<Template[]>("/templates/public")
-      .then((items) => setSystemTemplates([...bundledTemplates.filter((template) => !items.some((item) => item.id === template.id)), ...items]))
+    if (page !== "home" && page !== "templates") return;
+    const controller = new AbortController();
+    void apiRequest<Template[]>("/templates/public", { signal: controller.signal })
+      .then(setSystemTemplates)
       .catch(() => {});
-  }, []);
+    return () => controller.abort();
+  }, [page]);
   useEffect(() => {
     if (!auth) return;
     void apiRequest<{ user: AuthUser }>("/auth/me")
@@ -461,7 +464,7 @@ function App() {
       {page === "ats" && <ATS cv={cv} />}{" "}
       {page === "cover" && <Cover cv={cv} notify={notify} />}
       {page === "login" && <AuthPage onComplete={completeAuth} />}
-      {page === "admin" && auth?.role === "admin" && <AdminPage notify={notify} auth={auth} />}
+      {page === "admin" && auth?.role === "admin" && <AdminPage notify={notify} auth={auth} onTemplatesChange={(templates) => setSystemTemplates(templates.filter((template) => template.status !== "draft"))} />}
       {toast && (
         <div className="toast">
           <CircleCheck size={18} />
@@ -595,22 +598,55 @@ function AuthPage({ onComplete }: { onComplete: (session: { token: string; user:
   return <main className="auth-page"><section className="auth-panel"><div className="auth-brand"><span>✦</span> CVForge</div><span className="eyebrow">{mode === "login" ? "WELCOME BACK" : "START FOR FREE"}</span><h1>{mode === "login" ? "Good to see you." : "Create your account."}</h1><p>{mode === "login" ? "Sign in to save your CVs and custom templates securely." : "Your CVs and saved designs will be available whenever you return."}</p><form onSubmit={submit}><label className="field"><span>Email address</span><input type="email" name="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required disabled={loading} /></label><label className="field"><span>Password</span><input type="password" name="password" autoComplete={mode === "register" ? "new-password" : "current-password"} disabled={loading} value={password} minLength={8} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" required /></label>{error && <div className="auth-error" role="alert">{error}</div>}<button className="primary auth-submit" disabled={loading}>{loading ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}<ArrowRight size={16} /></button></form><button className="auth-switch" disabled={loading} onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); }}>{mode === "login" ? "New to CVForge? Create an account" : "Already have an account? Log in"}</button></section><aside className="auth-aside"><span className="eyebrow">YOUR WORK, YOURS</span><h2>Build it once.<br/><em>Take it anywhere.</em></h2><div><CircleCheck size={18}/><span><b>Private account storage</b><small>Your CVs are saved to your account.</small></span></div><div><CircleCheck size={18}/><span><b>Custom templates</b><small>Keep the visual styles you create.</small></span></div></aside></main>;
 }
 
-function AdminPage({ notify, auth }: { notify: (message: string) => void; auth: AuthUser }) {
+function AdminPage({ notify, auth, onTemplatesChange }: { notify: (message: string) => void; auth: AuthUser; onTemplatesChange: (templates: Template[]) => void }) {
   const [overview, setOverview] = useState<{ userCount: number; cvCount: number; customTemplateCount: number; systemTemplateCount: number } | null>(null);
   const [users, setUsers] = useState<{ id: string; email: string; role: string; createdAt: string }[]>([]);
   const [documents, setDocuments] = useState<{ id: string; title: string; owner: string; updatedAt: string }[]>([]);
   const [templateRecords, setTemplateRecords] = useState<Template[]>([]);
   const [draftTemplate, setDraftTemplate] = useState<Template>(newSystemTemplateDraft);
+  const [templateBusy, setTemplateBusy] = useState(false);
+  const templateRequestPending = useRef(false);
+  const designerRef = useRef<HTMLElement>(null);
+  const updateCatalog = (templates: Template[]) => {
+    setTemplateRecords(templates);
+    onTemplatesChange(templates);
+    setOverview((stats) => stats ? { ...stats, systemTemplateCount: templates.length } : stats);
+  };
   const load = () => Promise.all([
     apiRequest<{ userCount: number; cvCount: number; customTemplateCount: number; systemTemplateCount: number }>("/admin/overview"),
     apiRequest<{ id: string; email: string; role: string; createdAt: string }[]>("/admin/users"),
     apiRequest<{ id: string; title: string; owner: string; updatedAt: string }[]>("/admin/cvs"),
     apiRequest<Template[]>("/admin/system-templates"),
-  ]).then(([stats, accountRecords, cvRecords, templateData]) => { setOverview(stats); setUsers(accountRecords); setDocuments(cvRecords); setTemplateRecords(templateData); }).catch(() => notify("Could not load admin data."));
+  ]).then(([stats, accountRecords, cvRecords, templateData]) => { setOverview(stats); setUsers(accountRecords); setDocuments(cvRecords); updateCatalog(templateData); }).catch(() => notify("Could not load admin data."));
   useEffect(() => { void load(); }, []);
   const saveTemplate = async (template: Template) => {
-    try { await apiRequest(`/admin/system-templates/${encodeURIComponent(template.id)}`, { method: "PUT", body: JSON.stringify({ template }) }); notify("System template updated."); }
-    catch { notify("Could not update the template."); }
+    if (templateRequestPending.current) return;
+    if (!template.name.trim() || !template.category.trim()) { notify("Add a template name and category."); return; }
+    templateRequestPending.current = true;
+    setTemplateBusy(true);
+    try {
+      const saved = await apiRequest<Template>(`/admin/system-templates/${encodeURIComponent(template.id)}`, { method: "PUT", body: JSON.stringify({ template }) });
+      updateCatalog(templateRecords.some((item) => item.id === saved.id) ? templateRecords.map((item) => item.id === saved.id ? saved : item) : [...templateRecords, saved]);
+      setDraftTemplate(saved);
+      notify(saved.status === "draft" ? "Template saved as a private draft." : "Template saved and available to users.");
+    } catch (error) { notify(error instanceof Error ? error.message : "Could not save the template."); }
+    finally { templateRequestPending.current = false; setTemplateBusy(false); }
+  };
+  const editTemplate = (source: Template) => {
+    setDraftTemplate({ ...newSystemTemplateDraft(), ...source, design: { ...newSystemTemplateDraft().design!, ...source.design } });
+    designerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const deleteTemplate = async (template: Template) => {
+    if (templateRequestPending.current || !window.confirm(`Delete "${template.name}" from the template catalog? Existing saved CVs will be kept.`)) return;
+    templateRequestPending.current = true;
+    setTemplateBusy(true);
+    try {
+      await apiRequest(`/admin/system-templates/${encodeURIComponent(template.id)}`, { method: "DELETE" });
+      updateCatalog(templateRecords.filter((item) => item.id !== template.id));
+      if (draftTemplate.id === template.id) setDraftTemplate(newSystemTemplateDraft());
+      notify("Template deleted.");
+    } catch (error) { notify(error instanceof Error ? error.message : "Could not delete the template."); }
+    finally { templateRequestPending.current = false; setTemplateBusy(false); }
   };
   const saveDesignedTemplate = async (status: "draft" | "published") => {
     if (!draftTemplate.name.trim()) { notify("Add a name for the new template."); return; }
@@ -622,13 +658,7 @@ function AdminPage({ notify, auth }: { notify: (message: string) => void; auth: 
       status,
       version: draftTemplate.version ?? 1,
     };
-    try {
-      const saved = await apiRequest<Template>(`/admin/system-templates/${encodeURIComponent(template.id)}`, { method: "PUT", body: JSON.stringify({ template }) });
-      setTemplateRecords((items) => items.some((item) => item.id === saved.id) ? items.map((item) => item.id === saved.id ? saved : item) : [...items, saved]);
-      setDraftTemplate(saved);
-      notify(status === "published" ? "Template published for users." : "Template saved as a private draft.");
-      void load();
-    } catch { notify("Could not save the template."); }
+    await saveTemplate(template);
   };
   const duplicateTemplate = (source: Template) => setDraftTemplate({ ...newSystemTemplateDraft(), ...source, id: "", name: `${source.name} copy`, status: "draft", version: (source.version ?? 1) + 1, design: { ...newSystemTemplateDraft().design!, ...(source.design ?? {}) }, sections: [...(source.sections ?? initialCV.sections)], sidebarSections: [...(source.sidebarSections ?? [])], sectionLabels: { ...(source.sectionLabels ?? {}) } });
   const deleteDocument = async (id: string) => {
@@ -654,12 +684,12 @@ function AdminPage({ notify, auth }: { notify: (message: string) => void; auth: 
     } catch { notify("Could not delete the account."); }
   };
   return <main className="admin-page">
-    <div className="admin-heading"><div><span className="eyebrow">ADMIN CONSOLE</span><h1>Manage CVForge data.</h1><p>Users, saved CVs, and template records are managed from MongoDB.</p></div><button className="secondary compact" onClick={() => void load()}>Refresh</button></div>
+    <div className="admin-heading"><div><span className="eyebrow">ADMIN CONSOLE</span><h1>Manage CVForge data.</h1><p>Users, saved CVs, and template records are managed from MongoDB.</p></div><button className="secondary compact" disabled={templateBusy} onClick={() => void load()}>Refresh</button></div>
     <div className="admin-stats"><article><b>{overview?.userCount ?? "—"}</b><span>Accounts</span></article><article><b>{overview?.cvCount ?? "—"}</b><span>CV documents</span></article><article><b>{overview?.customTemplateCount ?? "—"}</b><span>Custom templates</span></article><article><b>{overview?.systemTemplateCount ?? "—"}</b><span>System templates</span></article></div>
-    <section className="admin-section template-designer">
-      <div className="admin-section-title"><h2>Template designer</h2><p>Create a new template with a layout, visual style, and ATS setting. Publishing makes it available to all users.</p></div>
+    <section className="admin-section template-designer" ref={designerRef}>
+      <div className="admin-section-title"><h2>{draftTemplate.id ? `Edit ${draftTemplate.name}` : "Template designer"}</h2><p>{draftTemplate.id ? "Update this template and save your changes. Saving as a draft removes it from the public gallery." : "Create a new template with a layout, visual style, and ATS setting. Publishing makes it available to all users."}</p></div>
       <div className="template-designer-grid">
-        <div className="template-designer-controls">
+        <fieldset className="template-designer-controls admin-template-controls" disabled={templateBusy}>
           <div className="fields two"><Input label="Template name" value={draftTemplate.name} onChange={(name) => setDraftTemplate((draft) => ({ ...draft, name }))} placeholder="e.g. Horizon" /><Input label="Category" value={draftTemplate.category} onChange={(category) => setDraftTemplate((draft) => ({ ...draft, category }))} placeholder="e.g. Professional" /></div>
           <label className="field"><span>Start from an existing template</span><select defaultValue="" onChange={(event) => { const source = templateRecords.find((item) => item.id === event.target.value); if (source) duplicateTemplate(source); event.currentTarget.value = ""; }}><option value="">Blank designer</option>{templateRecords.map((template) => <option value={template.id} key={template.id}>{template.name} · v{template.version ?? 1}</option>)}</select></label>
           <Input label="Short description" value={draftTemplate.description} onChange={(description) => setDraftTemplate((draft) => ({ ...draft, description }))} placeholder="What makes this template useful?" />
@@ -669,12 +699,16 @@ function AdminPage({ notify, auth }: { notify: (message: string) => void; auth: 
           <div className="designer-advanced-grid"><label className="field"><span>Page size</span><select value={draftTemplate.pageSize} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, pageSize: event.target.value as "a4" | "letter" }))}><option value="a4">A4</option><option value="letter">US Letter</option></select></label><label className="field"><span>Page margin</span><select value={draftTemplate.pageMargin} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, pageMargin: +event.target.value }))}><option value="30">30 px</option><option value="42">42 px</option><option value="54">54 px</option></select></label><label className="field"><span>Content density</span><select value={draftTemplate.density} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, density: event.target.value as Template["density"] }))}><option value="compact">Compact</option><option value="standard">Standard</option><option value="relaxed">Relaxed</option></select></label><label className="field"><span>Structure</span><select value={draftTemplate.layout} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, layout: event.target.value as Template["layout"] }))}><option value="single">Single column</option><option value="two-column">Two columns</option></select></label><label className="field"><span>Sidebar position</span><select value={draftTemplate.sidebarPosition} disabled={draftTemplate.layout !== "two-column"} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, sidebarPosition: event.target.value as Template["sidebarPosition"] }))}><option value="left">Left</option><option value="right">Right</option></select></label><label className="field"><span>Sidebar width</span><select value={draftTemplate.sidebarWidth} disabled={draftTemplate.layout !== "two-column"} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, sidebarWidth: +event.target.value }))}><option value="28">28%</option><option value="32">32%</option><option value="36">36%</option></select></label></div>
           <div className="designer-advanced-grid"><label className="field"><span>Header alignment</span><select value={draftTemplate.headerAlign} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, headerAlign: event.target.value as Template["headerAlign"] }))}><option value="left">Left</option><option value="center">Center</option></select></label><label className="field"><span>Photo shape</span><select value={draftTemplate.photoShape} disabled={!draftTemplate.showPhoto} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, photoShape: event.target.value as Template["photoShape"] }))}><option value="circle">Circle</option><option value="rounded">Rounded</option><option value="square">Square</option></select></label><label className="designer-toggle"><input type="checkbox" checked={draftTemplate.showPhoto !== false} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, showPhoto: event.target.checked }))} /> Show profile photo</label><label className="field"><span>Divider</span><select value={draftTemplate.divider} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, divider: event.target.value as Template["divider"] }))}><option value="line">Line</option><option value="accent">Accent</option><option value="none">None</option></select></label><label className="field"><span>Skills</span><select value={draftTemplate.skillStyle} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, skillStyle: event.target.value as Template["skillStyle"] }))}><option value="chips">Chips</option><option value="plain">Plain text</option><option value="bars">Bars</option></select></label><label className="field"><span>Contact details</span><select value={draftTemplate.contactStyle} onChange={(event) => setDraftTemplate((draft) => ({ ...draft, contactStyle: event.target.value as Template["contactStyle"] }))}><option value="inline">Inline</option><option value="stacked">Stacked</option></select></label></div>
           <TemplateSectionTools template={draftTemplate} onChange={setDraftTemplate} />
-          <div className="designer-actions"><button className="secondary" onClick={() => void saveDesignedTemplate("draft")}><Save size={16}/> Save draft</button><button className="primary" onClick={() => void saveDesignedTemplate("published")}><Check size={16}/> Publish template</button><button className="text-button" onClick={() => setDraftTemplate(newSystemTemplateDraft())}>New blank template</button></div>
-        </div>
+          <div className="designer-actions"><button className="secondary" onClick={() => void saveDesignedTemplate("draft")}><Save size={16}/> Save draft</button><button className="primary" onClick={() => void saveDesignedTemplate("published")}><Check size={16}/> {draftTemplate.id && draftTemplate.status !== "draft" ? "Update template" : "Publish template"}</button><button className="text-button" onClick={() => setDraftTemplate(newSystemTemplateDraft())}>{draftTemplate.id ? "Cancel editing" : "New blank template"}</button></div>
+        </fieldset>
         <div className="designer-live-preview"><span>LIVE PREVIEW</span><TemplateThumb cv={initialCV} template={draftTemplate} /><strong>{draftTemplate.name || "Untitled template"}</strong><small>{draftTemplate.description || "Add a description for this template."}</small></div>
       </div>
     </section>
-    <section className="admin-section"><div className="admin-section-title"><h2>System templates</h2><p>Changes update the database catalog immediately.</p></div><div className="admin-template-grid">{templateRecords.map((template) => <article key={template.id}><TemplateThumb cv={initialCV} template={template} /><label className="field"><span>Template name</span><input value={template.name} onChange={(event) => setTemplateRecords((items) => items.map((item) => item.id === template.id ? { ...item, name: event.target.value } : item))} /></label><label className="field"><span>Description</span><input value={template.description} onChange={(event) => setTemplateRecords((items) => items.map((item) => item.id === template.id ? { ...item, description: event.target.value } : item))} /></label><button className="secondary compact" onClick={() => void saveTemplate(template)}><Save size={14}/> Save template</button></article>)}</div></section>
+    <section className="admin-section"><div className="admin-section-title"><h2>System templates</h2><p>Edit template details and design, or delete a template from the catalog.</p></div><div className="admin-template-grid">{templateRecords.map((template) => <article key={template.id}>
+      <TemplateThumb cv={initialCV} template={template} />
+      <h3>{template.name}</h3><p>{template.description}</p><span className="badge">{template.status === "draft" ? "Draft" : "Published"}</span>
+      <div className="admin-template-actions"><button className="secondary compact" disabled={templateBusy} onClick={() => editTemplate(template)} aria-label={`Edit ${template.name}`}><PenLine size={14}/> Edit template</button><button className="secondary compact admin-template-delete" disabled={templateBusy} onClick={() => void deleteTemplate(template)} aria-label={`Delete ${template.name}`}><Trash2 size={14}/> Delete</button></div>
+    </article>)}</div>{templateRecords.length === 0 && <p>No system templates. Create one using the designer above.</p>}</section>
     <section className="admin-section"><div className="admin-section-title"><h2>Saved CVs</h2><p>Most recent 100 account documents.</p></div><div className="admin-table">{documents.length ? documents.map((document) => <div key={document.id}><span><b>{document.title}</b><small>{document.owner}</small></span><time>{new Date(document.updatedAt).toLocaleString()}</time><button onClick={() => void deleteDocument(document.id)}><Trash2 size={15}/></button></div>) : <p>No saved CVs yet.</p>}</div></section>
     <section className="admin-section"><div className="admin-section-title"><h2>Accounts</h2><p>Manage access roles. Passwords are hashed and never displayed.</p></div><div className="admin-table">{users.map((user) => <div key={user.id}><span><b>{user.email}</b><small>Joined {new Date(user.createdAt).toLocaleDateString()}</small></span><select className="admin-role-select" aria-label={`Role for ${user.email}`} value={user.role} disabled={user.id === auth.id} onChange={(event) => void updateUserRole(user.id, event.target.value as "admin" | "user")}><option value="user">User</option><option value="admin">Admin</option></select>{user.id === auth.id ? <small className="admin-current-account">Current account</small> : <button className="admin-delete-user" aria-label={`Delete ${user.email}`} onClick={() => void deleteUser(user.id, user.email)}><Trash2 size={15}/></button>}</div>)}</div></section>
   </main>;

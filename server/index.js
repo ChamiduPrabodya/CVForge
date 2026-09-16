@@ -30,7 +30,7 @@ const cvSchema = new mongoose.Schema({ userId: { type: mongoose.Schema.Types.Obj
 cvSchema.index({ userId: 1, documentId: 1 }, { unique: true });
 const customTemplateSchema = new mongoose.Schema({ userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true }, templateId: { type: String, required: true }, template: { type: mongoose.Schema.Types.Mixed, required: true } }, { timestamps: true });
 customTemplateSchema.index({ userId: 1, templateId: 1 }, { unique: true });
-const systemTemplateSchema = new mongoose.Schema({ templateId: { type: String, required: true, unique: true }, template: { type: mongoose.Schema.Types.Mixed, required: true } }, { timestamps: true });
+const systemTemplateSchema = new mongoose.Schema({ templateId: { type: String, required: true, unique: true }, template: { type: mongoose.Schema.Types.Mixed, required: true }, deleted: { type: Boolean, default: false } }, { timestamps: true });
 
 const User = mongoose.model("User", userSchema, "users");
 const CV = mongoose.model("CV", cvSchema, "cv_documents");
@@ -59,7 +59,7 @@ const requireAdmin = async (req, res, next) => {
 
 app.get("/api/health", (_req, res) => res.json({ ok: true, database: mongoose.connection.name }));
 app.get("/api/templates/public", async (_req, res, next) => {
-  try { const records = await SystemTemplate.find().sort({ createdAt: 1 }).lean(); res.json(records.map((record) => record.template)); }
+  try { const records = await SystemTemplate.find({ deleted: { $ne: true }, "template.status": { $ne: "draft" } }).sort({ createdAt: 1 }).lean(); res.json(records.map((record) => record.template)); }
   catch (error) { next(error); }
 });
 app.post("/api/auth/register", async (req, res, next) => {
@@ -128,7 +128,7 @@ app.delete("/api/templates/:templateId", requireAuth, async (req, res, next) => 
 app.get("/api/admin/overview", requireAuth, requireAdmin, async (_req, res, next) => {
   try {
     const [userCount, cvCount, customTemplateCount, systemTemplateCount, recentUsers] = await Promise.all([
-      User.countDocuments(), CV.countDocuments(), CustomTemplate.countDocuments(), SystemTemplate.countDocuments(),
+      User.countDocuments(), CV.countDocuments(), CustomTemplate.countDocuments(), SystemTemplate.countDocuments({ deleted: { $ne: true } }),
       User.find().sort({ createdAt: -1 }).limit(8).select("email role createdAt").lean(),
     ]);
     res.json({ userCount, cvCount, customTemplateCount, systemTemplateCount, recentUsers });
@@ -170,15 +170,28 @@ app.delete("/api/admin/cvs/:id", requireAuth, requireAdmin, async (req, res, nex
   catch (error) { next(error); }
 });
 app.get("/api/admin/system-templates", requireAuth, requireAdmin, async (_req, res, next) => {
-  try { const records = await SystemTemplate.find().sort({ createdAt: 1 }).lean(); res.json(records.map((record) => record.template)); }
+  try { const records = await SystemTemplate.find({ deleted: { $ne: true } }).sort({ createdAt: 1 }).lean(); res.json(records.map((record) => record.template)); }
   catch (error) { next(error); }
 });
 app.put("/api/admin/system-templates/:templateId", requireAuth, requireAdmin, async (req, res, next) => {
   try {
-    const { template } = req.body;
-    if (!template?.name || !template?.style || !template?.category) return res.status(400).json({ error: "Template name, category, and style are required." });
-    const record = await SystemTemplate.findOneAndUpdate({ templateId: req.params.templateId }, { templateId: req.params.templateId, template: { ...template, id: req.params.templateId } }, { upsert: true, new: true, runValidators: true }).lean();
+    const { template } = req.body || {};
+    if (![template?.name, template?.style, template?.category].every((value) => typeof value === "string" && value.trim())) return res.status(400).json({ error: "Template name, category, and style are required." });
+    if (template.status !== undefined && !["draft", "published"].includes(template.status)) return res.status(400).json({ error: "Template status must be draft or published." });
+    if (await SystemTemplate.exists({ templateId: req.params.templateId, deleted: true })) return res.status(404).json({ error: "This template has been deleted. Create a new template instead." });
+    const record = await SystemTemplate.findOneAndUpdate({ templateId: req.params.templateId, deleted: { $ne: true } }, { templateId: req.params.templateId, template: { ...template, id: req.params.templateId, name: template.name.trim(), category: template.category.trim(), style: template.style.trim() } }, { upsert: true, new: true, runValidators: true }).lean();
     res.json(record.template);
+  } catch (error) {
+    if (error.code === 11000) return res.status(409).json({ error: "The template changed. Refresh and try again." });
+    next(error);
+  }
+});
+app.delete("/api/admin/system-templates/:templateId", requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    // Retain a tombstone so startup seeding cannot restore a deleted bundled template.
+    const result = await SystemTemplate.updateOne({ templateId: req.params.templateId, deleted: { $ne: true } }, { $set: { deleted: true } });
+    if (!result.matchedCount) return res.status(404).json({ error: "Template not found." });
+    res.status(204).end();
   } catch (error) { next(error); }
 });
 app.use((error, _req, res, _next) => { console.error(error); res.status(500).json({ error: "Unexpected server error." }); });
@@ -201,6 +214,7 @@ const seedSystemTemplates = () => Promise.all([carelineTemplate, saleslineTempla
   { $setOnInsert: { templateId: template.id, template } },
   { upsert: true },
 )));
-mongoose.connect(mongoUri)
+export { app, seedSystemTemplates };
+if (process.env.NODE_ENV !== "test") mongoose.connect(mongoUri)
   .then(async () => { await seedAdmin(); await removeBundledTemplates(); await seedSystemTemplates(); app.listen(port, () => console.log(`CVForge API listening on http://localhost:${port}`)); })
   .catch((error) => { console.error("Could not connect to MongoDB:", error.message); process.exit(1); });
