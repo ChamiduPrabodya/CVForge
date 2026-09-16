@@ -2419,6 +2419,37 @@ textarea {
 .cv-warner .warner-columns:has(> :empty) > * { grid-column: 1; grid-row: auto; }
 .cv-warner .warner-columns > :empty, .cv-warner .warner-entry-heading:empty { display: none; }
 
+/* Sanchez: full-width blue identity band and aligned single-column section rules. */
+.cv-document.cv-sanchez { padding: 0; background: var(--sanchez-background); color: var(--sanchez-ink); line-height: 1.25; }
+.sanchez-header { padding: 3.7em 2em 1.2em; background: var(--accent); color: #fff; text-align: center; }
+.sanchez-header h1 { margin: 0; font-family: var(--cv-heading-font), Arial, sans-serif; font-size: var(--name-font-size, 28px); font-weight: 700; line-height: 1.15; text-transform: uppercase; }
+.sanchez-header > p { margin: .15em 0 0; font-weight: 700; }
+.sanchez-contact { display: flex; flex-wrap: wrap; justify-content: center; padding: 1em 3em .4em; font-size: .95em; }
+.sanchez-contact > span + span::before { content: " | "; white-space: pre; }
+.sanchez-body { padding: 1.5em 4.2em 3em; }
+.cv-sanchez .cv-section { margin: 0 0 calc(2.3em * var(--space, 1)); }
+.cv-sanchez .cv-section:last-child { margin-bottom: 0; }
+.cv-sanchez .cv-section h3 { display: grid; grid-template-columns: 11.4em minmax(0, 1fr); align-items: center; gap: 1em; margin: 0 0 1.15em; padding: 0; border: 0; color: inherit; font-family: var(--cv-heading-font), Arial, sans-serif; font-size: 1em; font-weight: 500; line-height: 1.25; text-transform: uppercase; }
+.cv-sanchez .cv-section h3::after { content: ""; flex: 1; min-width: 1em; height: 1px; background: var(--accent); }
+.cv-sanchez .cv-section > p { font-size: .92em; text-align: justify; }
+.sanchez-entry { margin-bottom: calc(1.2em * var(--space, 1)); break-inside: avoid; }
+.sanchez-entry:last-child { margin-bottom: 0; }
+.sanchez-entry-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 1em; }
+.sanchez-entry-heading:empty { display: none; }
+.sanchez-entry h4 { margin: 0; font-size: inherit; font-weight: 500; line-height: inherit; }
+.sanchez-entry time { flex: none; font-weight: 500; }
+.cv-sanchez .sanchez-entry > p { margin-top: .15em; }
+.sanchez-entry ul, .sanchez-skills { margin: .1em 0 0; padding-left: 1.6em; }
+.sanchez-entry li { text-align: justify; }
+.cv-sanchez .sanchez-education { margin-bottom: calc(1.6em * var(--space, 1)); }
+.cv-sanchez :is(.cv-entry b, .cv-list, .cv-link) { color: inherit; }
+.template-thumb.sanchez { background: #edf2f9; }
+.modal-cv .cv-document.cv-sanchez { padding: 0; font-size: calc(var(--body-font-size, 12px) * .613); }
+.modal-cv .cv-sanchez .sanchez-header h1 { font-size: calc(var(--name-font-size, 28px) * .613); }
+.modal-cv .cv-sanchez .cv-section { margin-bottom: calc(2.3em * var(--space, 1)); }
+.modal-cv .cv-sanchez .sanchez-education { margin-bottom: calc(1.6em * var(--space, 1)); }
+.modal-cv .cv-sanchez .cv-section h3 { font-size: 1em; margin-bottom: 1.15em; padding: 0; }
+
 /* Unfilled content must not reserve room in the rendered CV or exports. */
 .cv-document :is(h1, h2, h4, p, b, time, .contact, .portrait-contact, .cv-entry > div):empty { display: none; }
 .cv-document .cv-entry:not(:has(> time)) { padding-right: 0; }

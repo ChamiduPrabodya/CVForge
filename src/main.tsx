@@ -45,6 +45,7 @@ import boutiqueTemplate from "./templates/boutique.json";
 import ivoryTemplate from "./templates/ivory.json";
 import mercadoTemplate from "./templates/mercado.json";
 import warnerTemplate from "./templates/warner.json";
+import sanchezTemplate from "./templates/sanchez.json";
 
 type Experience = {
   id: string;
@@ -224,7 +225,7 @@ const documentTemplate = (cv: CVData): Template => cv.templateConfig ?? bundledT
   description: "",
   style: cv.template || "custom",
 };
-const bundledTemplates: Template[] = [carelineTemplate as Template, saleslineTemplate as Template, boutiqueTemplate as Template, ivoryTemplate as Template, mercadoTemplate as Template, warnerTemplate as Template];
+const bundledTemplates: Template[] = [carelineTemplate as Template, saleslineTemplate as Template, boutiqueTemplate as Template, ivoryTemplate as Template, mercadoTemplate as Template, warnerTemplate as Template, sanchezTemplate as Template];
 const categories = [
   "All",
   "Professional",
@@ -819,7 +820,7 @@ function Templates({
   );
 }
 function TemplateThumb({ cv, template }: { cv: CVData; template: Template }) {
-  if (["careline", "salesline", "boutique", "ivory", "mercado", "warner"].includes(template.style)) return <TimelineThumbnail cv={cv} template={template} />;
+  if (["careline", "salesline", "boutique", "ivory", "mercado", "warner", "sanchez"].includes(template.style)) return <TimelineThumbnail cv={cv} template={template} />;
   return (
     <div className={"template-thumb " + template.style} style={{ "--template-accent": template.design?.accent ?? "#514ed0" } as React.CSSProperties}>
       <ThumbDesign cv={cv} style={template.style} />
@@ -1523,6 +1524,7 @@ function CVPreview({ cv: document, template }: { cv: CVData; template?: Template
   const cv = cvDisplayData(document);
   const t = template ?? documentTemplate(cv);
   const activeSections = (template ? template.sections ?? cv.sections : cv.sections).filter((section) => hasSectionContent(cv, section));
+  if (t.style === "sanchez") return <SanchezCV cv={cv} template={t} sections={activeSections} />;
   if (t.style === "warner") return <WarnerCV cv={cv} template={t} sections={activeSections} />;
   if (t.style === "mercado") return <MercadoCV cv={cv} template={t} sections={activeSections} />;
   if (t.style === "ivory") return <IvoryCV cv={cv} template={t} sections={activeSections} />;
@@ -1547,7 +1549,23 @@ function CVPreview({ cv: document, template }: { cv: CVData; template?: Template
 }
 // Sample content is used only for an empty gallery preview, never saved to a CV.
 function templatePreviewData(cv: CVData, template: Template): CVData {
-  if (!["careline", "salesline", "boutique", "ivory", "mercado", "warner"].includes(template.style) || cv.fullName || cv.title || cv.summary || cv.email || cv.phone || cv.location || cv.website || cv.linkedin || cv.photo || initialCV.sections.some((key) => Array.isArray(cv[key as keyof CVData]) && (cv[key as keyof CVData] as unknown[]).length)) return cv;
+  if (!["careline", "salesline", "boutique", "ivory", "mercado", "warner", "sanchez"].includes(template.style) || cv.fullName || cv.title || cv.summary || cv.email || cv.phone || cv.location || cv.website || cv.linkedin || cv.photo || initialCV.sections.some((key) => Array.isArray(cv[key as keyof CVData]) && (cv[key as keyof CVData] as unknown[]).length)) return cv;
+  if (template.style === "sanchez") return {
+    ...initialCV,
+    fullName: "Olivia Sanchez", title: "Administrative Manager",
+    email: "hello@reallygreatsite.com", phone: "123–456–7890", location: "123 Anywhere St., Any City",
+    summary: "Detail-oriented administrative professional with over three years of experience providing comprehensive support to executive teams and office operations. Proven track record of managing administrative tasks efficiently and maintaining strict confidentiality. Strong organizational skills coupled with excellent communication abilities to coordinate office activities and facilitate smooth workflow.",
+    experience: [
+      { id: "sanchez-job-1", title: "Administrative Assistant", company: "Arowwai Industries", location: "", start: "Oct 2023", end: "Present", description: "Managed executive calendars, schedule meetings, and coordinate travel arrangements.\nMaintained office supplies inventory and order supplies as needed, optimizing cost efficiency.\nAssisted in organizing company events, ensuring seamless execution." },
+      { id: "sanchez-job-2", title: "Office Coordinator", company: "Borcelle", location: "", start: "Jan 2022", end: "Sept 2023", description: "Provided administrative support to a team of 20+ employees, including calendar management, expense reporting, and meeting coordination.\nActed as a liaison between departments, fostering effective communication and collaboration.\nAssisted in onboarding new employees, facilitating orientation sessions and ensuring compliance with company policies." },
+      { id: "sanchez-job-3", title: "Internship", company: "Salford & Co Corporation", location: "", start: "Apr 2021", end: "Dec 2021", description: "Supported senior executives with administrative tasks, including scheduling meetings, managing correspondence, and preparing reports.\nAssisted in the planning and execution of corporate events and client meetings, ensuring a high level of professionalism and attention to detail." },
+    ],
+    education: [
+      { id: "sanchez-education-1", degree: "Bachelor of Business Administration", school: "University of Business Excellence", location: "", start: "Jan 2019", end: "Feb 2021", description: "Major in International Business.\nFinal CGPA: 3.90" },
+      { id: "sanchez-education-2", degree: "Foundation in Business Administration", school: "Borcelle University", location: "", start: "Jan 2018", end: "Dec 2018", description: "Final CGPA: 3.80" },
+    ],
+    skills: ["Technical skill : Data Entry, Design, Video Editor", "Soft skill : Collaboration, Creative, Communication, Critical thinking", "Language : English (Fluent), Indonesia (Fluent)"],
+  };
   if (template.style === "warner") return {
     ...initialCV,
     fullName: "Emaa Warner", title: "Accounting Executive",
@@ -1767,6 +1785,34 @@ function BoutiqueCV({ cv, template, sections }: { cv: CVData; template: Template
   return <article className={`cv-document cv-careline cv-boutique${template.sidebarPosition === "right" ? " boutique-sidebar-right" : ""}`} style={style}>
     {(cv.fullName || cv.title || contact.length > 0) && <header className="boutique-header">{cv.fullName && <h1>{cv.fullName}</h1>}{cv.title && <p>{cv.title}</p>}{contact.length > 0 && <div className="boutique-contact">{contact.map(({ label, value, icon: Icon }) => <div key={label}><Icon aria-hidden="true" /><span className="sr-only">{label}: </span><span>{value}</span></div>)}</div>}</header>}
     <div className="boutique-columns"><aside className="boutique-sidebar">{sidebarSections.filter((section) => sections.includes(section)).map(renderSection)}</aside><div className="boutique-main">{sections.filter((section) => !sidebarSections.includes(section)).map(renderSection)}</div></div>
+  </article>;
+}
+function SanchezCV({ cv, template, sections }: { cv: CVData; template: Template; sections: string[] }) {
+  const contact = [cv.email, cv.phone, cv.location, cv.website, cv.linkedin].filter(Boolean);
+  const renderSection = (type: string) => {
+    const label = template.sectionLabels?.[type] || sectionTitles[type];
+    if (type === "experience" || type === "education") {
+      const entries = type === "experience"
+        ? cv.experience.map((item) => ({ ...item, heading: [item.title, item.company].filter(Boolean).join(", "), organization: "" }))
+        : cv.education.map((item) => ({ ...item, heading: item.degree, organization: item.school }));
+      return <section className={`cv-section sanchez-${type}`} key={type}><h3>{label}</h3>{entries.map((item) => <div className="sanchez-entry" key={item.id}>
+        <div className="sanchez-entry-heading">{item.heading && <h4>{item.heading}</h4>}{(item.start || item.end) && <time>{[item.start, item.end].filter(Boolean).join(" – ")}</time>}</div>
+        {(item.organization || item.location) && <p>{[item.organization, item.location].filter(Boolean).join(" | ")}</p>}
+        <CarelineBullets text={item.description ?? ""} />
+      </div>)}</section>;
+    }
+    if (type === "skills") return <section className="cv-section" key={type}><h3>{label}</h3><ul className="sanchez-skills">{cv.skills.map((skill, index) => <li key={index}>{skill}</li>)}</ul></section>;
+    return <CVSection key={type} type={type} cv={cv} label={label} />;
+  };
+  const style = {
+    "--accent": cv.design.accent, "--cv-font": cv.design.font, "--cv-heading-font": cv.design.headingFont ?? cv.design.font,
+    "--space": cv.design.spacing, "--body-font-size": `${cv.design.bodyFontSize}px`, "--name-font-size": `${cv.design.nameFontSize}px`,
+    "--sanchez-ink": cv.design.secondaryAccent ?? "#292929", "--sanchez-background": cv.design.background ?? "#fff",
+  } as React.CSSProperties;
+  return <article className="cv-document cv-careline cv-sanchez" style={style}>
+    {(cv.fullName || cv.title) && <header className="sanchez-header">{cv.fullName && <h1>{cv.fullName}</h1>}{cv.title && <p>{cv.title}</p>}</header>}
+    {contact.length > 0 && <div className="sanchez-contact">{contact.map((item, index) => <span key={index}>{item}</span>)}</div>}
+    <div className="sanchez-body">{sections.map(renderSection)}</div>
   </article>;
 }
 function WarnerCV({ cv, template, sections }: { cv: CVData; template: Template; sections: string[] }) {

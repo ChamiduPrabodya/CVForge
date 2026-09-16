@@ -1,0 +1,29 @@
+{
+  "id": "sanchez",
+  "name": "Sanchez",
+  "category": "Professional",
+  "description": "A clean single-column resume with a bold blue header, centered contact details, and fine blue section rules. Ideal for administrative and business roles.",
+  "style": "sanchez",
+  "status": "published",
+  "version": 1,
+  "layout": "single",
+  "headerAlign": "center",
+  "showPhoto": false,
+  "pageSize": "a4",
+  "pageMargin": 50,
+  "density": "compact",
+  "divider": "line",
+  "skillStyle": "plain",
+  "contactStyle": "inline",
+  "sectionLabels": { "summary": "Summary", "experience": "Work Experience", "skills": "Key Skills" },
+  "design": {
+    "accent": "#084aad",
+    "secondaryAccent": "#292929",
+    "background": "#ffffff",
+    "font": "Arial",
+    "headingFont": "Arial",
+    "spacing": 1,
+    "bodyFontSize": 12,
+    "nameFontSize": 28
+  }
+}
