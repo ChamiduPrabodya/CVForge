@@ -6,3 +6,24 @@
   ➜  Network: use --host to expose
 6:20:07 PM [vite] (client) [optimizer] bundling dependencies...
 CVForge API listening on http://localhost:4000
+6:31:50 PM [vite] (client) hmr update /src/main.tsx
+6:31:50 PM [vite] (client) hmr invalidate /src/main.tsx Could not Fast Refresh ("true" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:31:50 PM [vite] (client) page reload src/main.tsx
+6:34:38 PM [vite] (client) hmr update /src/main.tsx
+6:34:38 PM [vite] (client) hmr invalidate /src/main.tsx Could not Fast Refresh ("true" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:34:38 PM [vite] (client) page reload src/main.tsx
+6:34:39 PM [vite] (client) hmr update /src/styles.css
+6:35:42 PM [vite] (client) hmr update /src/main.tsx
+6:35:42 PM [vite] (client) hmr invalidate /src/main.tsx Could not Fast Refresh ("true" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:35:42 PM [vite] (client) page reload src/main.tsx
+6:39:21 PM [vite] (client) hmr update /src/main.tsx
+6:39:21 PM [vite] (client) hmr invalidate /src/main.tsx Could not Fast Refresh ("true" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:39:21 PM [vite] (client) page reload src/main.tsx
+6:45:30 PM [vite] (client) hmr update /src/main.tsx
+6:45:30 PM [vite] (client) hmr invalidate /src/main.tsx Could not Fast Refresh ("true" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:45:30 PM [vite] (client) page reload src/main.tsx
+6:45:31 PM [vite] (client) hmr update /src/styles.css
+Restarting 'server/index.js'
+CVForge API listening on http://localhost:4000
+Restarting 'server/index.js'
+CVForge API listening on http://localhost:4000

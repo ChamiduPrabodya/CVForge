@@ -14,6 +14,7 @@ import {
   FileText,
   GripVertical,
   LayoutTemplate,
+  LockKeyhole,
   Mail,
   MapPin,
   Menu,
@@ -370,7 +371,14 @@ function App() {
     if (page === "admin" && auth?.role !== "admin") setPage(auth ? "dashboard" : "login");
   }, [page, auth]);
   const choose = (template: Template) => {
-    setCV((p) => ({ ...p, template: template.style, templateConfig: template, design: { ...p.design, ...(template.design ?? {}) } }));
+    setCV((document) => {
+      return {
+        ...document,
+        template: template.style,
+        templateConfig: template,
+        design: { ...document.design, ...template.design },
+      };
+    });
     setPage("builder");
     notify("Template selected — your information is preserved.");
   };
@@ -832,8 +840,12 @@ function Templates({
       </div>}
       <div className="templates-grid">
         {!loading && !error && visible.map((t) => (
-          <article className="template-card" key={t.id}>
-            <TemplateThumb cv={cv} template={t} />
+          <article className="template-card" key={t.id} onClick={(event) => {
+            if (!(event.target as HTMLElement).closest("button")) choose(t);
+          }}>
+            <button type="button" className="template-select" aria-label={`Use ${t.name} template`} onClick={() => choose(t)}>
+              <TemplateThumb cv={cv} template={t} />
+            </button>
             <div className="template-info">
               <div>
                 <h3>{t.name}</h3>
@@ -917,8 +929,9 @@ function Builder({
   saveCustomTemplate: (design: DesignSettings) => void;
   changeTemplate: () => void;
 }) {
-  const [tab, setTab] = useState<"edit" | "preview" | "style">("edit"),
+  const [tab, setTab] = useState<"edit" | "preview" | "style">(cv.templateConfig ? "preview" : "edit"),
     [open, setOpen] = useState("personal"),
+    [skillDraft, setSkillDraft] = useState(""),
     [color, setColor] = useState(cv.design?.accent ?? "#2563eb"),
     [font, setFont] = useState(cv.design?.font ?? "Inter"),
     [spacing, setSpacing] = useState(cv.design?.spacing ?? 1),
@@ -929,8 +942,23 @@ function Builder({
     [zoom, setZoom] = useState(1),
     previewRef = useRef<HTMLDivElement>(null),
     previewAreaRef = useRef<HTMLElement>(null);
+  const photoEnabled = documentTemplate(cv).showPhoto !== false;
+  useEffect(() => {
+    if (!photoEnabled) {
+      photoReaderRef.current?.abort();
+      setPhotoToEdit("");
+    }
+  }, [photoEnabled]);
   const update = (key: keyof CVData, value: any) =>
     setCV((p) => ({ ...p, [key]: value }));
+  const addSkill = () => {
+    const skill = skillDraft.trim();
+    if (!skill) return;
+    setCV((document) => document.skills.some((existing) => existing.toLowerCase() === skill.toLowerCase())
+      ? document
+      : { ...document, skills: [...document.skills, skill] });
+    setSkillDraft("");
+  };
   useEffect(() => {
     setCV((document) => ({
       ...document,
@@ -944,6 +972,7 @@ function Builder({
     patch: Partial<T>,
   ) => update(key, items.map((item) => item.id === id ? { ...item, ...patch } : item));
   const uploadPhoto = (file?: File) => {
+    if (!photoEnabled) return;
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
       notify("Please choose a JPG, PNG, or WebP photo.");
@@ -1051,7 +1080,7 @@ function Builder({
     <main className="builder">
       <div className="builder-top">
         <div>
-          <button className="back" onClick={() => history.back()}>
+          <button className="back" onClick={changeTemplate}>
             <ArrowLeft size={16} /> Templates
           </button>
           <span className="doc-name">
@@ -1146,13 +1175,14 @@ function Builder({
                 onChange={(v) => update("linkedin", v)}
               />
             </div>
-            <div className="photo-upload">
+            <fieldset className="photo-upload" disabled={!photoEnabled} aria-label="Profile photo" aria-describedby={!photoEnabled ? "photo-locked-help" : undefined}>
               {cv.photo ? <img src={cv.photo} alt="Profile" /> : <span>{cv.fullName.split(" ").map((part) => part[0]).join("")}</span>}
               <label className="upload-control"><Upload size={14} /> {cv.photo ? "Replace photo" : "Upload profile photo"}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => { uploadPhoto(e.target.files?.[0]); e.target.value = ""; }} /></label>
               {cv.photo && <button type="button" className="edit-photo" onClick={() => setPhotoToEdit(cv.originalPhoto || cv.photo)}><PenLine size={14} /> Edit photo</button>}
               {cv.photo && <button className="remove-photo" onClick={() => { photoReaderRef.current?.abort(); setPhotoToEdit(""); setCV((document) => ({ ...document, photo: "", originalPhoto: "" })); }}>Remove</button>}
-            </div>
-            {photoToEdit && <PhotoEditor key={photoToEdit} source={photoToEdit} onClose={() => setPhotoToEdit("")} onApply={(photo) => { setCV((document) => ({ ...document, photo, originalPhoto: photoToEdit })); setPhotoToEdit(""); notify("Profile photo updated."); }} />}
+            </fieldset>
+            {!photoEnabled && <p className="hint photo-locked-help" id="photo-locked-help"><LockKeyhole size={14} aria-hidden="true" /> This template does not include a photo. Choose a template with a photo to enable these controls.</p>}
+            {photoEnabled && photoToEdit && <PhotoEditor key={photoToEdit} source={photoToEdit} onClose={() => setPhotoToEdit("")} onApply={(photo) => { setCV((document) => ({ ...document, photo, originalPhoto: photoToEdit })); setPhotoToEdit(""); notify("Profile photo updated."); }} />}
           </Accordion>
           <Accordion
             title="Professional summary"
@@ -1276,9 +1306,11 @@ function Builder({
           >
             <div className="skill-editor">
               {cv.skills.map((s, i) => (
-                <span key={s}>
+                <span key={`${i}-${s}`}>
                   {s}
                   <button
+                    type="button"
+                    aria-label={`Remove ${s}`}
                     onClick={() =>
                       update(
                         "skills",
@@ -1293,16 +1325,17 @@ function Builder({
             </div>
             <Input
               label="Add a skill"
-              value=""
+              value={skillDraft}
               placeholder="Type and press Enter"
-              onChange={() => {}}
+              onChange={setSkillDraft}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && e.currentTarget.value) {
-                  update("skills", [...cv.skills, e.currentTarget.value]);
-                  e.currentTarget.value = "";
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  addSkill();
                 }
               }}
             />
+            <button type="button" className="add-button" disabled={!skillDraft.trim()} onClick={addSkill}><Plus size={15} /> Add skill</button>
           </Accordion>
           <Accordion title={`Projects (${cv.projects.length})`} visible={cv.sections.includes("projects")} open={open === "projects"} onClick={() => setOpen(open === "projects" ? "" : "projects")}>
             <Repeater items={cv.projects} onChange={(items) => update("projects", items)} addLabel="Add project" newItem={() => ({ id: uid(), name: "New project", description: "Describe what you built and the impact it created.", tech: "", url: "", github: "" })} itemLabel={(item) => item.name || "Untitled project"}>
@@ -1604,9 +1637,17 @@ function CVPreview({ cv: document, template }: { cv: CVData; template?: Template
   }
   return <article className={`cv-document ${classes}`} style={documentStyle}>{(cv.fullName || cv.title || photo || contact.length > 0) && <header className="cv-header">{(cv.fullName || cv.title) && <div>{identity}</div>}{photo}{contactDetails}</header>}<div className="cv-body">{activeSections.map((section) => <CVSection key={section} type={section} cv={cv} label={t.sectionLabels?.[section]} />)}</div></article>;
 }
-// Sample content is used only for an empty gallery preview, never saved to a CV.
+// Sample content is used only for gallery previews, never added to the user's CV.
 function templatePreviewData(cv: CVData, template: Template): CVData {
-  if (!["careline", "salesline", "boutique", "ivory", "mercado", "warner", "sanchez"].includes(template.style) || cv.fullName || cv.title || cv.summary || cv.email || cv.phone || cv.location || cv.website || cv.linkedin || cv.photo || initialCV.sections.some((key) => Array.isArray(cv[key as keyof CVData]) && (cv[key as keyof CVData] as unknown[]).length)) return cv;
+  if (cv.fullName || cv.title || cv.summary || cv.email || cv.phone || cv.location || cv.website || cv.linkedin || cv.photo || initialCV.sections.some((key) => Array.isArray(cv[key as keyof CVData]) && (cv[key as keyof CVData] as unknown[]).length)) return cv;
+  if (!["careline", "salesline", "boutique", "ivory", "mercado", "warner", "sanchez"].includes(template.style)) return {
+    ...initialCV,
+    fullName: "Your Name", title: "Professional Title", email: "you@example.com", location: "City, Country",
+    summary: "Introduce yourself, describe your experience, and highlight what you can bring to your next role.",
+    experience: [{ id: "sample-job", title: "Job Title", company: "Company Name", location: "City", start: "2023", end: "Present", description: "Describe your responsibilities and highlight a key achievement." }],
+    education: [{ id: "sample-degree", degree: "Degree or Qualification", school: "School or University", location: "", start: "2019", end: "2023" }],
+    skills: ["Communication", "Problem solving", "Teamwork"],
+  };
   if (template.style === "sanchez") return {
     ...initialCV,
     fullName: "Olivia Sanchez", title: "Administrative Manager",
