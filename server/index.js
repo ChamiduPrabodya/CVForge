@@ -59,6 +59,7 @@ const requireAdmin = async (req, res, next) => {
 
 app.get("/api/health", (_req, res) => res.json({ ok: true, database: mongoose.connection.name }));
 app.get("/api/templates/public", async (_req, res, next) => {
+  res.set("Cache-Control", "no-store");
   try { const records = await SystemTemplate.find({ deleted: { $ne: true }, "template.status": { $ne: "draft" } }).sort({ createdAt: 1 }).lean(); res.json(records.map((record) => record.template)); }
   catch (error) { next(error); }
 });
@@ -170,6 +171,7 @@ app.delete("/api/admin/cvs/:id", requireAuth, requireAdmin, async (req, res, nex
   catch (error) { next(error); }
 });
 app.get("/api/admin/system-templates", requireAuth, requireAdmin, async (_req, res, next) => {
+  res.set("Cache-Control", "no-store");
   try { const records = await SystemTemplate.find({ deleted: { $ne: true } }).sort({ createdAt: 1 }).lean(); res.json(records.map((record) => record.template)); }
   catch (error) { next(error); }
 });

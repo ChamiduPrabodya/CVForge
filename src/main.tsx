@@ -272,7 +272,10 @@ function App() {
       try { return (localStorage.getItem("cvforge-theme") ?? localStorage.getItem("cvforge-home-theme")) === "dark" ? "dark" : "light"; } catch { return "light"; }
     }),
     [customTemplates, setCustomTemplates] = useState<Template[]>([]),
-    [systemTemplates, setSystemTemplates] = useState<Template[]>(bundledTemplates),
+    [systemTemplates, setSystemTemplates] = useState<Template[]>([]),
+    [catalogLoading, setCatalogLoading] = useState(true),
+    [catalogError, setCatalogError] = useState(""),
+    [catalogRevision, setCatalogRevision] = useState(0),
     [auth, setAuth] = useState<AuthUser | null>(() => {
       try { return JSON.parse(localStorage.getItem("cvforge-auth-user") || "null"); } catch { return null; }
     });
@@ -298,11 +301,14 @@ function App() {
   useEffect(() => {
     if (page !== "home" && page !== "templates") return;
     const controller = new AbortController();
-    void apiRequest<Template[]>("/templates/public", { signal: controller.signal })
-      .then(setSystemTemplates)
-      .catch(() => {});
+    setCatalogLoading(true);
+    setCatalogError("");
+    void apiRequest<Template[]>("/templates/public", { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]), cache: "no-store" })
+      .then((templates) => { if (!controller.signal.aborted) setSystemTemplates(templates); })
+      .catch(() => { if (!controller.signal.aborted) setCatalogError("Could not load the template catalog. Please try again."); })
+      .finally(() => { if (!controller.signal.aborted) setCatalogLoading(false); });
     return () => controller.abort();
-  }, [page]);
+  }, [page, catalogRevision]);
   useEffect(() => {
     if (!auth) return;
     void apiRequest<{ user: AuthUser }>("/auth/me")
@@ -456,7 +462,7 @@ function App() {
         </div>
       )}
       {page === "home" && <Home go={setPage} />}{" "}
-      {page === "templates" && <Templates cv={cv} templates={[...systemTemplates, ...customTemplates]} choose={choose} startBlank={() => { setCV({ ...initialCV, id: uid() }); setPage("builder"); }} />}{" "}
+      {page === "templates" && <Templates cv={cv} templates={[...systemTemplates, ...customTemplates]} loading={catalogLoading} error={catalogError} retry={() => setCatalogRevision((value) => value + 1)} choose={choose} startBlank={() => { setCV({ ...initialCV, id: uid() }); setPage("builder"); }} />}{" "}
       {page === "builder" && (
         <Builder cv={cv} setCV={setCV} save={save} notify={notify} saveCustomTemplate={saveCustomTemplate} changeTemplate={() => setPage("templates")} />
       )}{" "}
@@ -606,22 +612,30 @@ function AdminPage({ notify, auth, onTemplatesChange }: { notify: (message: stri
   const [draftTemplate, setDraftTemplate] = useState<Template>(newSystemTemplateDraft);
   const [templateBusy, setTemplateBusy] = useState(false);
   const templateRequestPending = useRef(false);
+  const adminLoadVersion = useRef(0);
   const designerRef = useRef<HTMLElement>(null);
   const updateCatalog = (templates: Template[]) => {
     setTemplateRecords(templates);
     onTemplatesChange(templates);
     setOverview((stats) => stats ? { ...stats, systemTemplateCount: templates.length } : stats);
   };
-  const load = () => Promise.all([
+  const load = () => {
+    const version = ++adminLoadVersion.current;
+    return Promise.all([
     apiRequest<{ userCount: number; cvCount: number; customTemplateCount: number; systemTemplateCount: number }>("/admin/overview"),
     apiRequest<{ id: string; email: string; role: string; createdAt: string }[]>("/admin/users"),
     apiRequest<{ id: string; title: string; owner: string; updatedAt: string }[]>("/admin/cvs"),
     apiRequest<Template[]>("/admin/system-templates"),
-  ]).then(([stats, accountRecords, cvRecords, templateData]) => { setOverview(stats); setUsers(accountRecords); setDocuments(cvRecords); updateCatalog(templateData); }).catch(() => notify("Could not load admin data."));
+  ]).then(([stats, accountRecords, cvRecords, templateData]) => {
+    if (version !== adminLoadVersion.current || templateRequestPending.current) return;
+    setOverview(stats); setUsers(accountRecords); setDocuments(cvRecords); updateCatalog(templateData);
+  }).catch(() => { if (version === adminLoadVersion.current) notify("Could not load admin data."); });
+  };
   useEffect(() => { void load(); }, []);
   const saveTemplate = async (template: Template) => {
     if (templateRequestPending.current) return;
     if (!template.name.trim() || !template.category.trim()) { notify("Add a template name and category."); return; }
+    adminLoadVersion.current += 1;
     templateRequestPending.current = true;
     setTemplateBusy(true);
     try {
@@ -638,6 +652,7 @@ function AdminPage({ notify, auth, onTemplatesChange }: { notify: (message: stri
   };
   const deleteTemplate = async (template: Template) => {
     if (templateRequestPending.current || !window.confirm(`Delete "${template.name}" from the template catalog? Existing saved CVs will be kept.`)) return;
+    adminLoadVersion.current += 1;
     templateRequestPending.current = true;
     setTemplateBusy(true);
     try {
@@ -764,11 +779,17 @@ function MiniCV() {
 function Templates({
   cv,
   templates: allTemplates,
+  loading,
+  error,
+  retry,
   choose,
   startBlank,
 }: {
   cv: CVData;
   templates: Template[];
+  loading: boolean;
+  error: string;
+  retry: () => void;
   choose: (template: Template) => void;
   startBlank: () => void;
 }) {
@@ -799,16 +820,18 @@ function Templates({
             </button>
           ))}
         </div>
-        <span>{visible.length} templates</span>
+        <span>{loading ? "Loading templates…" : error ? "Catalog unavailable" : `${visible.length} templates`}</span>
       </div>
-      {visible.length === 0 && <div className="template-empty">
+      {loading && <p role="status">Loading templates…</p>}
+      {!loading && error && <div className="template-empty" role="alert"><p>{error}</p><button className="secondary" onClick={retry}>Try again</button></div>}
+      {!loading && !error && visible.length === 0 && <div className="template-empty">
         <LayoutTemplate size={32} />
         <h2>{allTemplates.length ? "No templates in this category" : "No templates yet"}</h2>
         <p>Start a blank CV, customize its design, and save it as your own template.</p>
         <button className="primary" onClick={startBlank}>Start a blank CV <ArrowRight size={16} /></button>
       </div>}
       <div className="templates-grid">
-        {visible.map((t) => (
+        {!loading && !error && visible.map((t) => (
           <article className="template-card" key={t.id}>
             <TemplateThumb cv={cv} template={t} />
             <div className="template-info">

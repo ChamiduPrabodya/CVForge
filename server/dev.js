@@ -10,7 +10,7 @@ function stop(code = 0) {
   process.exitCode = code;
 }
 for (const args of [
-  ["server/index.js"],
+  ["--watch", "server/index.js"],
   ["node_modules/vite/bin/vite.js", ...process.argv.slice(2)],
 ]) {
   const child = spawn(process.execPath, args, { stdio: "inherit" });

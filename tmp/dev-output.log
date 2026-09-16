@@ -1,0 +1,8 @@
+6:20:06 PM [vite] (client) Re-optimizing dependencies because vite config has changed
+
+  VITE v8.2.2  ready in 463 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+6:20:07 PM [vite] (client) [optimizer] bundling dependencies...
+CVForge API listening on http://localhost:4000
