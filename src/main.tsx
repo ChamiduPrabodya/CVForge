@@ -47,6 +47,8 @@ import ivoryTemplate from "./templates/ivory.json";
 import mercadoTemplate from "./templates/mercado.json";
 import warnerTemplate from "./templates/warner.json";
 import sanchezTemplate from "./templates/sanchez.json";
+import chandranTemplate from "./templates/chandran.json";
+import kumariTemplate from "./templates/kumari.json";
 
 type Experience = {
   id: string;
@@ -91,6 +93,7 @@ type CVData = {
   experience: Experience[];
   education: Education[];
   skills: string[];
+  expertise: string[];
   projects: Project[];
   certifications: Certification[];
   languages: Language[];
@@ -197,6 +200,7 @@ const initialCV: CVData = {
   experience: [],
   education: [],
   skills: [],
+  expertise: [],
   projects: [],
   certifications: [],
   languages: [],
@@ -204,11 +208,12 @@ const initialCV: CVData = {
   volunteer: [],
   references: [],
   design: { accent: "#2563eb", font: "Inter", spacing: 1, bodyFontSize: 11, nameFontSize: 28 },
-  sections: ["summary", "experience", "education", "skills", "projects", "certifications", "languages", "achievements", "volunteer", "references"],
+  sections: ["summary", "experience", "education", "skills", "expertise", "projects", "certifications", "languages", "achievements", "volunteer", "references"],
 };
 const hydrateCV = (stored: Partial<CVData>): CVData => ({
   ...initialCV,
   ...stored,
+  expertise: stored.expertise ?? [],
   projects: stored.projects ?? initialCV.projects,
   certifications: stored.certifications ?? initialCV.certifications,
   languages: stored.languages ?? initialCV.languages,
@@ -226,7 +231,7 @@ const documentTemplate = (cv: CVData): Template => cv.templateConfig ?? bundledT
   description: "",
   style: cv.template || "custom",
 };
-const bundledTemplates: Template[] = [carelineTemplate as Template, saleslineTemplate as Template, boutiqueTemplate as Template, ivoryTemplate as Template, mercadoTemplate as Template, warnerTemplate as Template, sanchezTemplate as Template];
+const bundledTemplates: Template[] = [carelineTemplate as Template, saleslineTemplate as Template, boutiqueTemplate as Template, ivoryTemplate as Template, mercadoTemplate as Template, warnerTemplate as Template, sanchezTemplate as Template, chandranTemplate as Template, kumariTemplate as Template];
 const categories = [
   "All",
   "Professional",
@@ -246,6 +251,7 @@ const sectionTitles: Record<string, string> = {
   experience: "Experience",
   education: "Education",
   skills: "Skills",
+  expertise: "Expertise",
   projects: "Selected Projects",
   certifications: "Certifications",
   languages: "Languages",
@@ -889,7 +895,7 @@ function Templates({
   );
 }
 function TemplateThumb({ cv, template }: { cv: CVData; template: Template }) {
-  if (["careline", "salesline", "boutique", "ivory", "mercado", "warner", "sanchez"].includes(template.style)) return <TimelineThumbnail cv={cv} template={template} />;
+  if (["careline", "salesline", "boutique", "ivory", "mercado", "warner", "sanchez", "chandran", "kumari"].includes(template.style)) return <TimelineThumbnail cv={cv} template={template} />;
   return (
     <div className={"template-thumb " + template.style} style={{ "--template-accent": template.design?.accent ?? "#514ed0" } as React.CSSProperties}>
       <ThumbDesign cv={cv} style={template.style} />
@@ -1337,6 +1343,9 @@ function Builder({
             />
             <button type="button" className="add-button" disabled={!skillDraft.trim()} onClick={addSkill}><Plus size={15} /> Add skill</button>
           </Accordion>
+          <Accordion title="Expertise" visible={cv.sections.includes("expertise")} open={open === "expertise"} onClick={() => setOpen(open === "expertise" ? "" : "expertise")}>
+            <label className="field"><span>Areas of expertise</span><textarea value={cv.expertise.join("\n")} onChange={(event) => update("expertise", event.target.value.split("\n"))} placeholder="Enter one area of expertise per line" /></label>
+          </Accordion>
           <Accordion title={`Projects (${cv.projects.length})`} visible={cv.sections.includes("projects")} open={open === "projects"} onClick={() => setOpen(open === "projects" ? "" : "projects")}>
             <Repeater items={cv.projects} onChange={(items) => update("projects", items)} addLabel="Add project" newItem={() => ({ id: uid(), name: "New project", description: "Describe what you built and the impact it created.", tech: "", url: "", github: "" })} itemLabel={(item) => item.name || "Untitled project"}>
               {(item, change) => <>
@@ -1614,6 +1623,8 @@ function CVPreview({ cv: document, template }: { cv: CVData; template?: Template
   const cv = cvDisplayData(document);
   const t = template ?? documentTemplate(cv);
   const activeSections = (template ? template.sections ?? cv.sections : cv.sections).filter((section) => hasSectionContent(cv, section));
+  if (t.style === "kumari") return <KumariCV cv={cv} template={t} sections={activeSections} />;
+  if (t.style === "chandran") return <ChandranCV cv={cv} template={t} sections={activeSections} />;
   if (t.style === "sanchez") return <SanchezCV cv={cv} template={t} sections={activeSections} />;
   if (t.style === "warner") return <WarnerCV cv={cv} template={t} sections={activeSections} />;
   if (t.style === "mercado") return <MercadoCV cv={cv} template={t} sections={activeSections} />;
@@ -1640,13 +1651,50 @@ function CVPreview({ cv: document, template }: { cv: CVData; template?: Template
 // Sample content is used only for gallery previews, never added to the user's CV.
 function templatePreviewData(cv: CVData, template: Template): CVData {
   if (cv.fullName || cv.title || cv.summary || cv.email || cv.phone || cv.location || cv.website || cv.linkedin || cv.photo || initialCV.sections.some((key) => Array.isArray(cv[key as keyof CVData]) && (cv[key as keyof CVData] as unknown[]).length)) return cv;
-  if (!["careline", "salesline", "boutique", "ivory", "mercado", "warner", "sanchez"].includes(template.style)) return {
+  if (!["careline", "salesline", "boutique", "ivory", "mercado", "warner", "sanchez", "chandran", "kumari"].includes(template.style)) return {
     ...initialCV,
     fullName: "Your Name", title: "Professional Title", email: "you@example.com", location: "City, Country",
     summary: "Introduce yourself, describe your experience, and highlight what you can bring to your next role.",
     experience: [{ id: "sample-job", title: "Job Title", company: "Company Name", location: "City", start: "2023", end: "Present", description: "Describe your responsibilities and highlight a key achievement." }],
     education: [{ id: "sample-degree", degree: "Degree or Qualification", school: "School or University", location: "", start: "2019", end: "2023" }],
     skills: ["Communication", "Problem solving", "Teamwork"],
+  };
+  if (template.style === "kumari") return {
+    ...initialCV,
+    fullName: "Maanvita Kumari", title: "Office Marketing", phone: "+123-456-7890", location: "123 Anywhere St., Any City", email: "hello@reallygreatsite.com",
+    summary: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+    education: [
+      { id: "kumari-edu-1", school: "Rimberio University", degree: "Lorem ipsum dolor", location: "", start: "2024", end: "2027" },
+      { id: "kumari-edu-2", school: "Rimberio University", degree: "Lorem ipsum dolor", location: "", start: "2023", end: "2021" },
+      { id: "kumari-edu-3", school: "Rimberio University", degree: "Lorem ipsum dolor", location: "", start: "2018", end: "2021" },
+    ],
+    experience: [
+      { id: "kumari-job-1", start: "2024", end: "Now" },
+      { id: "kumari-job-2", start: "2019", end: "2023" },
+      { id: "kumari-job-3", start: "2018", end: "2019" },
+    ].map((item) => ({ ...item, title: "Office Marketing", company: "Aldenaire & Partners", location: "", description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip\n• Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\n• Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor" })),
+    skills: ["Market Analysis", "Development", "Sales Techniques", "Time Management", "Techniques", "Digital Marketing"],
+    languages: [{ id: "kumari-hi", language: "Hindi", proficiency: "Native" }, { id: "kumari-en", language: "English", proficiency: "Fluent" }, { id: "kumari-other", language: "Lorem Ipsum", proficiency: "Intermediate" }],
+  };
+  if (template.style === "chandran") return {
+    ...initialCV,
+    fullName: "Riaan Chandran", title: "Office Manager", phone: "+123-456-7890", location: "123 Anywhere St., Any City", email: "hello@reallygreatsite.com",
+    summary: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+    education: [
+      { id: "chandran-edu-1", school: "Rimberio University", degree: "Lorem ipsum dolor", location: "", start: "2024", end: "2027" },
+      { id: "chandran-edu-2", school: "Rimberio University", degree: "Lorem ipsum dolor", location: "", start: "2021", end: "2024" },
+      { id: "chandran-edu-3", school: "Rimberio University", degree: "Lorem ipsum dolor", location: "", start: "2018", end: "2021" },
+    ],
+    skills: ["Time Management", "Team Leadership", "Problem Solving", "Decision Making", "Project Coordination"],
+    expertise: ["Administrative Efficiency", "Team Coordination", "Office Organization", "Task Prioritization", "Budget Management"],
+    languages: [{ id: "chandran-hi", language: "Hindi", proficiency: "" }, { id: "chandran-en", language: "English", proficiency: "" }],
+    experience: [
+      { id: "chandran-job-1", title: "Office Manager", company: "Aldenaire & Partners", start: "2024", end: "Now" },
+      { id: "chandran-job-2", title: "Office Manager", company: "Thynk Unlimited", start: "2019", end: "2023" },
+      { id: "chandran-job-3", title: "Office Manager", company: "Wardiere Inc", start: "2018", end: "2019" },
+      { id: "chandran-job-4", title: "Office Manager", company: "Ingoude Company", start: "2016", end: "2017" },
+    ].map((item) => ({ ...item, location: "", description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat." })),
+    achievements: [{ id: "chandran-award-1", text: "BORCELLE AWARD\nBest Manager – 2020" }, { id: "chandran-award-2", text: "BORCELLE AWARD\nBest Manager – 2022" }],
   };
   if (template.style === "sanchez") return {
     ...initialCV,
@@ -1885,6 +1933,83 @@ function BoutiqueCV({ cv, template, sections }: { cv: CVData; template: Template
     <div className="boutique-columns"><aside className="boutique-sidebar">{sidebarSections.filter((section) => sections.includes(section)).map(renderSection)}</aside><div className="boutique-main">{sections.filter((section) => !sidebarSections.includes(section)).map(renderSection)}</div></div>
   </article>;
 }
+function KumariCV({ cv, template, sections }: { cv: CVData; template: Template; sections: string[] }) {
+  const renderSection = (type: string) => {
+    const label = template.sectionLabels?.[type] || sectionTitles[type];
+    if (type === "education") return <section className="cv-section" key={type}><h3>{label}</h3>{cv.education.map((item) => <div className="kumari-education" key={item.id}>
+      <div className="kumari-entry-heading">{item.school && <h4>{item.school}</h4>}{(item.start || item.end) && <time>({[item.start, item.end].filter(Boolean).join(" – ")})</time>}</div>
+      {item.degree && <p>{item.degree}</p>}{item.location && <p>{item.location}</p>}{item.description && <p>{item.description}</p>}
+    </div>)}</section>;
+    if (type === "experience") return <section className="cv-section" key={type}><h3>{label}</h3>{cv.experience.map((item) => {
+      const lines = item.description.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      const content: React.ReactNode[] = [];
+      let bullets: string[] = [];
+      const flushBullets = () => { if (bullets.length) { content.push(<ul key={`bullets-${content.length}`}>{bullets.map((line, index) => <li key={index}>{line}</li>)}</ul>); bullets = []; } };
+      lines.forEach((line) => {
+        if (/^[•*\-]\s+/.test(line)) bullets.push(line.replace(/^[•*\-]\s+/, ""));
+        else { flushBullets(); content.push(<p key={`paragraph-${content.length}`}>{line}</p>); }
+      });
+      flushBullets();
+      return <div className="kumari-job" key={item.id}><div className="kumari-entry-heading">{(item.company || item.title) && <h4>{[item.company, item.title].filter(Boolean).join(" – ")}</h4>}{(item.start || item.end) && <time>{[item.start, item.end].filter(Boolean).join("–")}</time>}</div>{item.location && <p>{item.location}</p>}{content}</div>;
+    })}</section>;
+    if (type === "skills" || type === "expertise") return <section className="cv-section" key={type}><h3>{label}</h3><ul className="kumari-skills">{cv[type].map((item, index) => <li key={index}>{item}</li>)}</ul></section>;
+    if (type === "languages") return <section className="cv-section" key={type}><h3>{label}</h3><ul className="kumari-languages">{cv.languages.map((item) => {
+      const levels: Record<string, number> = { native: 100, fluent: 90, advanced: 80, intermediate: 65, basic: 40, beginner: 25 };
+      const level = levels[item.proficiency.toLowerCase()];
+      return <li key={item.id}><span>{item.language}</span>{level !== undefined ? <span className="kumari-language-line" style={{ "--language-level": `${level}%` } as React.CSSProperties}><span className="sr-only">{item.proficiency}</span></span> : item.proficiency ? <span>{item.proficiency}</span> : null}</li>;
+    })}</ul></section>;
+    return <CVSection key={type} type={type} cv={cv} label={label} />;
+  };
+  const rendered = new Set<string>();
+  const rows = sections.map((type) => {
+    if (rendered.has(type)) return null;
+    const pair = [["summary", "education"], ["skills", "languages"]].find((items) => items.includes(type));
+    const rowSections = pair ? sections.filter((item) => pair.includes(item)) : [type];
+    rowSections.forEach((item) => rendered.add(item));
+    return <div key={type} className={`kumari-row${rowSections.length > 1 ? " kumari-pair" : ""}`}>{rowSections.map(renderSection)}</div>;
+  });
+  const contact = [cv.phone, cv.location, cv.email, cv.website, cv.linkedin].filter(Boolean);
+  const style = {
+    "--accent": cv.design.accent, "--cv-font": cv.design.font, "--cv-heading-font": cv.design.headingFont ?? cv.design.font,
+    "--space": cv.design.spacing, "--body-font-size": `${cv.design.bodyFontSize}px`, "--name-font-size": `${cv.design.nameFontSize}px`,
+    "--kumari-ink": cv.design.secondaryAccent ?? "#333", "--kumari-background": cv.design.background ?? "#fff",
+  } as React.CSSProperties;
+  return <article className="cv-document cv-careline cv-kumari" style={style}>
+    {(cv.fullName || cv.title || contact.length > 0) && <header className="kumari-header">{cv.fullName && <h1>{cv.fullName}</h1>}{cv.title && <p>{cv.title}</p>}{contact.length > 0 && <div className="kumari-contact">{contact.map((item, index) => <span key={index}>{item}</span>)}</div>}</header>}
+    <div className="kumari-body">{rows}</div>
+  </article>;
+}
+function ChandranCV({ cv, template, sections }: { cv: CVData; template: Template; sections: string[] }) {
+  const sidebar = template.sidebarSections ?? ["education", "skills", "expertise", "languages"];
+  const renderSection = (type: string) => {
+    const label = template.sectionLabels?.[type] || sectionTitles[type];
+    if (type === "education") return <section className="cv-section" key={type}><h3>{label}</h3>{cv.education.map((item) => <div className="chandran-education" key={item.id}>
+      {item.school && <h4>{item.school}</h4>}{item.degree && <p>{item.degree}</p>}{item.location && <p>{item.location}</p>}
+      {(item.start || item.end) && <time>{[item.start, item.end].filter(Boolean).join(" – ")}</time>}{item.description && <p>{item.description}</p>}
+    </div>)}</section>;
+    if (type === "experience") return <section className="cv-section" key={type}><h3>{label}</h3>{cv.experience.map((item) => <div className="chandran-job" key={item.id}>
+      <div className="chandran-job-heading">{(item.company || item.title) && <h4>{[item.company, item.title].filter(Boolean).join(" – ")}</h4>}{(item.start || item.end) && <time>{[item.start, item.end].filter(Boolean).join("–")}</time>}</div>
+      {item.location && <p>{item.location}</p>}{item.description && <p>{item.description}</p>}
+    </div>)}</section>;
+    if (type === "skills" || type === "expertise" || type === "languages") {
+      const items = type === "languages" ? cv.languages.map((item) => [item.language, item.proficiency].filter(Boolean).join(" · ")) : cv[type];
+      return <section className="cv-section" key={type}><h3>{label}</h3><ul className="chandran-list">{items.map((item, index) => <li key={index}>{item}</li>)}</ul></section>;
+    }
+    if (type === "achievements") return <section className="cv-section" key={type}><h3>{label}</h3><div className="chandran-awards">{cv.achievements.map((item) => <p key={item.id}>{item.text}</p>)}</div></section>;
+    return <CVSection key={type} type={type} cv={cv} label={label} />;
+  };
+  const contact = [{ value: cv.phone, icon: Phone }, { value: cv.location, icon: MapPin }, { value: cv.email, icon: Mail }, { value: cv.website, icon: FileText }, { value: cv.linkedin, icon: UserRound }].filter((item) => item.value);
+  const style = {
+    "--accent": cv.design.accent, "--cv-font": cv.design.font, "--cv-heading-font": cv.design.headingFont ?? cv.design.font,
+    "--space": cv.design.spacing, "--body-font-size": `${cv.design.bodyFontSize}px`, "--name-font-size": `${cv.design.nameFontSize}px`,
+    "--chandran-sidebar": `${template.sidebarWidth ?? 30.5}%`, "--chandran-ink": cv.design.secondaryAccent ?? "#333", "--chandran-background": cv.design.background ?? "#fff",
+  } as React.CSSProperties;
+  return <article className={`cv-document cv-careline cv-chandran${template.sidebarPosition === "right" ? " chandran-sidebar-right" : ""}`} style={style}>
+    {(cv.fullName || cv.title) && <header className="chandran-header">{cv.fullName && <h1>{cv.fullName}</h1>}{cv.title && <p>{cv.title}</p>}</header>}
+    {contact.length > 0 && <div className="chandran-contact">{contact.map(({ value, icon: Icon }, index) => <span key={index}><Icon aria-hidden="true" /><span>{value}</span></span>)}</div>}
+    <div className="chandran-columns"><aside className="chandran-sidebar">{sections.filter((type) => sidebar.includes(type)).map(renderSection)}</aside><div className="chandran-main">{sections.filter((type) => !sidebar.includes(type)).map(renderSection)}</div></div>
+  </article>;
+}
 function SanchezCV({ cv, template, sections }: { cv: CVData; template: Template; sections: string[] }) {
   const contact = [cv.email, cv.phone, cv.location, cv.website, cv.linkedin].filter(Boolean);
   const renderSection = (type: string) => {
@@ -2117,12 +2242,12 @@ function CVSection({ type, cv, label }: { type: string; cv: CVData; label?: stri
         ))}
       </section>
     );
-  if (type === "skills")
+  if (type === "skills" || type === "expertise")
     return (
       <section className="cv-section">
         <h3>{heading}</h3>
         <div className="cv-skills">
-          {cv.skills.map((s) => (
+          {cv[type].map((s) => (
             <span key={s}>{s}</span>
           ))}
         </div>

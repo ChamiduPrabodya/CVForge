@@ -1,0 +1,26 @@
+{
+  "id": "chandran",
+  "name": "Chandran",
+  "category": "Minimal",
+  "description": "A minimal monochrome layout with a centered name, compact contact strip, fine column divider, and neatly arranged education, skills, and experience.",
+  "style": "chandran",
+  "status": "published",
+  "version": 1,
+  "layout": "two-column",
+  "sidebarPosition": "left",
+  "sidebarWidth": 30.5,
+  "headerAlign": "center",
+  "showPhoto": false,
+  "pageSize": "a4",
+  "pageMargin": 64,
+  "density": "compact",
+  "divider": "line",
+  "skillStyle": "plain",
+  "contactStyle": "inline",
+  "sidebarSections": ["education", "skills", "expertise", "languages"],
+  "sectionLabels": { "summary": "About Me", "experience": "Work Experience", "skills": "Skill", "languages": "Language", "achievements": "Achievement" },
+  "design": {
+    "accent": "#111111", "secondaryAccent": "#333333", "background": "#ffffff",
+    "font": "Arial", "headingFont": "Arial", "spacing": 1, "bodyFontSize": 10, "nameFontSize": 30
+  }
+}

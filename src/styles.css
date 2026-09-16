@@ -2464,6 +2464,52 @@ textarea {
 .modal-cv .cv-sanchez .sanchez-education { margin-bottom: calc(1.6em * var(--space, 1)); }
 .modal-cv .cv-sanchez .cv-section h3 { font-size: 1em; margin-bottom: 1.15em; padding: 0; }
 
+/* Chandran: minimal monochrome typography, narrow sidebar, and fine dividers. */
+.cv-document.cv-chandran { padding: 6.4em 6.4em 4.5em; background: var(--chandran-background); color: var(--chandran-ink); line-height: 1.25; }
+.chandran-header { text-align: center; margin-bottom: 1.5em; }
+.chandran-header h1 { margin: 0; font-family: var(--cv-heading-font), Arial, sans-serif; font-size: var(--name-font-size, 30px); font-weight: 700; line-height: 1.1; color: var(--accent); text-transform: uppercase; }
+.chandran-header > p { margin: .25em 0 0; font-size: 1.65em; }
+.chandran-contact { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .8em; padding: 1.15em 0; border-top: 1px solid #c7c7c7; border-bottom: 1px solid #c7c7c7; font-size: .88em; }
+.chandran-contact > span { display: flex; align-items: center; gap: .55em; min-width: 0; }
+.chandran-contact > span + span::before { content: "•"; margin-right: 3em; color: var(--accent); }
+.chandran-contact svg { width: 1.2em; height: 1.2em; flex: none; color: var(--accent); }
+.chandran-columns { display: grid; grid-template-columns: var(--chandran-sidebar, 30.5%) minmax(0, 1fr); gap: 4em; margin-top: 2.7em; }
+.chandran-sidebar { min-width: 0; padding-right: 2.6em; border-right: 1px solid #c7c7c7; }
+.chandran-main { min-width: 0; }
+.cv-chandran .cv-section { margin: 0; }
+.cv-chandran .cv-section + .cv-section { margin-top: calc(2.4em * var(--space, 1)); }
+.cv-chandran .cv-section + .cv-section::before { content: ""; display: block; width: 4.5em; height: 2px; margin-bottom: 2em; background: #bdbdbd; }
+.cv-chandran .cv-section h3 { margin: 0 0 1.2em; padding: 0; border: 0; font-family: var(--cv-heading-font), Arial, sans-serif; font-size: 1.3em; font-weight: 700; color: var(--accent); text-transform: uppercase; }
+.cv-chandran .cv-section > p { font-size: .96em; text-align: justify; }
+.chandran-education { margin-bottom: calc(.7em * var(--space, 1)); font-size: .93em; break-inside: avoid; }
+.chandran-education:last-child { margin-bottom: 0; }
+.chandran-education h4 { margin: 0; font-size: inherit; font-weight: 700; color: var(--accent); text-transform: uppercase; }
+.chandran-education time { display: block; margin-top: .5em; }
+.chandran-list { margin: 0; padding-left: 1.45em; font-size: .95em; }
+.chandran-list li { margin-bottom: 1.05em; }
+.chandran-list li:last-child { margin-bottom: 0; }
+.chandran-job { margin-bottom: calc(2.1em * var(--space, 1)); font-size: .95em; break-inside: avoid; }
+.chandran-job:last-child { margin-bottom: 0; }
+.chandran-job-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 1em; margin-bottom: 1em; color: var(--accent); font-weight: 700; }
+.chandran-job-heading:empty { display: none; }
+.chandran-job-heading h4 { margin: 0; font-size: inherit; }
+.chandran-job-heading time { flex: none; font-size: .95em; text-transform: uppercase; }
+.chandran-job > p { text-align: justify; }
+.chandran-awards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2em; font-size: .9em; }
+.chandran-awards > p { break-inside: avoid; }
+.cv-chandran :is(.cv-entry b, .cv-list, .cv-link) { color: inherit; }
+.chandran-sidebar-right .chandran-columns { grid-template-columns: minmax(0, 1fr) var(--chandran-sidebar, 30.5%); }
+.chandran-sidebar-right .chandran-sidebar { grid-column: 2; grid-row: 1; border-right: 0; border-left: 1px solid #c7c7c7; padding-right: 0; padding-left: 2.6em; }
+.chandran-sidebar-right .chandran-main { grid-column: 1; grid-row: 1; }
+.chandran-columns:has(> :empty) { grid-template-columns: minmax(0, 1fr); }
+.chandran-columns:has(> :empty) > * { grid-column: 1; grid-row: auto; border: 0; padding: 0; }
+.chandran-columns > :empty { display: none; }
+.template-thumb.chandran { background: #f0f0f0; }
+.modal-cv .cv-document.cv-chandran { padding: 6.4em 6.4em 4.5em; font-size: calc(var(--body-font-size, 10px) * .613); }
+.modal-cv .cv-chandran .chandran-header h1 { font-size: calc(var(--name-font-size, 30px) * .613); }
+.modal-cv .cv-chandran .cv-section { margin-bottom: 0; }
+.modal-cv .cv-chandran .cv-section h3 { font-size: 1.3em; margin-bottom: 1.2em; padding: 0; }
+
 /* Unfilled content must not reserve room in the rendered CV or exports. */
 .cv-document :is(h1, h2, h4, p, b, time, .contact, .portrait-contact, .cv-entry > div):empty { display: none; }
 .cv-document .cv-entry:not(:has(> time)) { padding-right: 0; }

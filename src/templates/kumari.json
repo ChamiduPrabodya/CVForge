@@ -1,0 +1,23 @@
+{
+  "id": "kumari",
+  "name": "Kumari",
+  "category": "Minimal",
+  "description": "A restrained gray header with paired profile and education sections, full-width work experience, and compact skills and language lists.",
+  "style": "kumari",
+  "status": "published",
+  "version": 1,
+  "layout": "single",
+  "headerAlign": "left",
+  "showPhoto": false,
+  "pageSize": "a4",
+  "pageMargin": 64,
+  "density": "compact",
+  "divider": "line",
+  "skillStyle": "plain",
+  "contactStyle": "inline",
+  "sectionLabels": { "summary": "About Me", "experience": "Work Experience" },
+  "design": {
+    "accent": "#e4e4e4", "secondaryAccent": "#333333", "background": "#ffffff",
+    "font": "Arial", "headingFont": "Arial", "spacing": 1, "bodyFontSize": 10, "nameFontSize": 30
+  }
+}

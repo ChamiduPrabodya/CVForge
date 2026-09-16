@@ -27,3 +27,12 @@ Restarting 'server/index.js'
 CVForge API listening on http://localhost:4000
 Restarting 'server/index.js'
 CVForge API listening on http://localhost:4000
+6:55:42 PM [vite] (client) hmr update /src/main.tsx
+6:55:42 PM [vite] (client) hmr invalidate /src/main.tsx Could not Fast Refresh ("true" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:55:42 PM [vite] (client) page reload src/main.tsx
+Restarting 'server/index.js'
+CVForge API listening on http://localhost:4000
+6:56:40 PM [vite] (client) hmr update /src/styles.css
+6:58:59 PM [vite] (client) hmr update /src/styles.css
+7:44:45 PM [vite] (client) hmr update /src/main.tsx
+Restarting 'server/index.js'
