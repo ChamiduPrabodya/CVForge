@@ -17,7 +17,6 @@ import {
   LockKeyhole,
   Mail,
   MapPin,
-  Menu,
   MoreHorizontal,
   Moon,
   Palette,
@@ -40,6 +39,8 @@ import {
 } from "lucide-react";
 import "./styles.css";
 import PhotoEditor from "./PhotoEditor";
+import ImportResume from "./ImportResume";
+import { requestAI, resumeFacts } from "./ai";
 import carelineTemplate from "./templates/careline.json";
 import saleslineTemplate from "./templates/salesline.json";
 import boutiqueTemplate from "./templates/boutique.json";
@@ -76,7 +77,9 @@ type Volunteer = { id: string; role: string; organization: string; location: str
 type Reference = { id: string; name: string; relationship: string; email: string; phone: string };
 type DesignSettings = { accent: string; font: string; spacing: number; bodyFontSize: number; nameFontSize: number; headingFont?: string; secondaryAccent?: string; background?: string };
 type AuthUser = { id: string; email: string; role: "admin" | "user" };
-type CVData = {
+export type CVData = {
+  importedSource?: string;
+  importedFilename?: string;
   id: string;
   name: string;
   template: string;
@@ -274,7 +277,6 @@ function App() {
     }),
     [cv, setCV] = useState<CVData>(initialCV),
     [toast, setToast] = useState(""),
-    [mobile, setMobile] = useState(false),
     [theme, setTheme] = useState<"light" | "dark">(() => {
       try { return (localStorage.getItem("cvforge-theme") ?? localStorage.getItem("cvforge-home-theme")) === "dark" ? "dark" : "light"; } catch { return "light"; }
     }),
@@ -286,6 +288,9 @@ function App() {
     [auth, setAuth] = useState<AuthUser | null>(() => {
       try { return JSON.parse(localStorage.getItem("cvforge-auth-user") || "null"); } catch { return null; }
     });
+  // Account loading must not replace a resume explicitly started in this session.
+  const documentRevision = useRef(0);
+  useEffect(() => { window.scrollTo(0, 0); }, [page]);
   useEffect(() => {
     document.documentElement.dataset.appTheme = theme;
     try { localStorage.setItem("cvforge-theme", theme); } catch {}
@@ -334,7 +339,7 @@ function App() {
     if (!auth) return;
     void apiRequest<{ document: CVData }[]>("/cvs")
       .then((records) => {
-        if (!records[0]?.document) return;
+        if (!records[0]?.document || documentRevision.current !== 0) return;
         const remoteCV = hydrateCV(records[0].document);
         setCV(remoteCV);
         localStorage.setItem("cvforge-doc", JSON.stringify(remoteCV));
@@ -365,7 +370,18 @@ function App() {
     setPage("home");
     notify("You have been logged out.");
   };
+  const startNewResume = () => {
+    documentRevision.current++;
+    setCV(structuredClone({ ...initialCV, id: uid() }));
+    setPage("templates");
+  };
+  const importResume = (data: Partial<CVData>, text: string, filename: string) => {
+    documentRevision.current++;
+    setCV(hydrateCV({ ...data, id: uid(), name: data.fullName ? `${data.fullName} Resume` : "Imported Resume", importedSource: text, importedFilename: filename }));
+    setPage("templates");
+  };
   const goToPage = (nextPage: string) => {
+    if (nextPage === "create") { startNewResume(); return; }
     if (nextPage === "admin" && auth?.role !== "admin") {
       setPage(auth ? "dashboard" : "login");
       notify("Admin access is restricted to administrator accounts.");
@@ -377,6 +393,7 @@ function App() {
     if (page === "admin" && auth?.role !== "admin") setPage(auth ? "dashboard" : "login");
   }, [page, auth]);
   const choose = (template: Template) => {
+    documentRevision.current++;
     setCV((document) => {
       return {
         ...document,
@@ -425,66 +442,31 @@ function App() {
   };
   return (
     <div data-theme={theme}>
-      <header className="topbar">
-        <button className="brand" onClick={() => setPage("home")}>
-          <span>✦</span> CVForge
-        </button>
-        <nav>
-          {nav.slice(0, 2).map((n) => (
-            <button
-              className={page === n.id ? "active" : ""}
-              onClick={() => goToPage(n.id)}
-              key={n.id}
-            >
-              {n.label}
-            </button>
-          ))}
-          <button onClick={() => goToPage("builder")}>How it works</button>
-          <button onClick={() => goToPage("home")}>Pricing</button>
-          {auth?.role === "admin" && <button className={page === "admin" ? "active" : ""} onClick={() => goToPage("admin")}>Admin</button>}
-        </nav>
-        <div className="theme-buttons" role="group" aria-label="Appearance">
-          <button type="button" aria-label="Light mode" title="Light mode" aria-pressed={theme === "light"} onClick={() => setTheme("light")}><Sun size={16} aria-hidden="true" /><span>Light</span></button>
-          <button type="button" aria-label="Dark mode" title="Dark mode" aria-pressed={theme === "dark"} onClick={() => setTheme("dark")}><Moon size={16} aria-hidden="true" /><span>Dark</span></button>
-        </div>
-        <div className="top-actions">
-          {auth ? <button className="login" onClick={logout}>{auth.role === "admin" ? "Admin" : auth.email.split("@")[0]} · Log out</button> : <button className="login" onClick={() => setPage("login")}>Log in</button>}
-          <button
-            className="primary small"
-            onClick={() => goToPage("templates")}
-          >
-            Create CV <ArrowRight size={15} />
-          </button>
-        </div>
-        <button className="menu" onClick={() => setMobile(!mobile)}>
-          <Menu />
-        </button>
-      </header>
-      {mobile && (
-        <div className="mobile-nav">
-          {nav.map((n) => (
-            <button
-              onClick={() => {
-                goToPage(n.id);
-                setMobile(false);
-              }}
-              key={n.id}
-            >
-              {n.label}
-            </button>
-          ))}
-        </div>
-      )}
-      {page === "home" && <Home go={setPage} />}{" "}
-      {page === "templates" && <Templates cv={cv} templates={[...systemTemplates, ...customTemplates]} loading={catalogLoading} error={catalogError} retry={() => setCatalogRevision((value) => value + 1)} choose={choose} startBlank={() => { setCV({ ...initialCV, id: uid() }); setPage("builder"); }} />}{" "}
+      {page !== "home" && page !== "import" && <div className="page-back"><button className="text-button" onClick={() => setPage("home")}><ArrowLeft size={16} /> Back to home</button></div>}
+      {page === "home" && <Home create={startNewResume} improve={() => setPage("import")} />}
+      {page === "import" && <ImportResume back={() => setPage("home")} complete={importResume} />}
+      {page === "templates" && <Templates cv={cv} templates={[...systemTemplates, ...customTemplates]} loading={catalogLoading} error={catalogError} retry={() => setCatalogRevision((value) => value + 1)} choose={choose} startBlank={() => setPage("builder")} />}{" "}
       {page === "builder" && (
-        <Builder cv={cv} setCV={setCV} save={save} notify={notify} saveCustomTemplate={saveCustomTemplate} changeTemplate={() => setPage("templates")} />
+        <><details className="import-source" hidden={!cv.importedSource}><summary>View original CV text</summary><pre>{cv.importedSource}</pre></details>
+        <Builder cv={cv} setCV={setCV} save={save} notify={notify} saveCustomTemplate={saveCustomTemplate} changeTemplate={() => setPage("templates")} /></>
       )}{" "}
-      {page === "dashboard" && <Dashboard cv={cv} go={setPage} save={save} auth={auth} />}{" "}
+      {page === "dashboard" && <Dashboard cv={cv} go={goToPage} save={save} auth={auth} />}{" "}
       {page === "ats" && <ATS cv={cv} />}{" "}
       {page === "cover" && <Cover cv={cv} notify={notify} />}
       {page === "login" && <AuthPage onComplete={completeAuth} />}
       {page === "admin" && auth?.role === "admin" && <AdminPage notify={notify} auth={auth} onTemplatesChange={(templates) => setSystemTemplates(templates.filter((template) => template.status !== "draft"))} />}
+      <footer className="app-footer">
+        <button className="brand" onClick={() => setPage("home")}>CVForge</button>
+        <div className="footer-links">
+          {nav.filter(item => item.id !== "home").map(item => <button key={item.id} onClick={() => goToPage(item.id)}>{item.label}</button>)}
+          {auth?.role === "admin" && <button onClick={() => goToPage("admin")}>Admin</button>}
+          {auth ? <button onClick={logout}>Log out</button> : <button onClick={() => setPage("login")}>Log in</button>}
+        </div>
+        <div className="theme-buttons" role="group" aria-label="Appearance">
+          <button aria-label="Light mode" aria-pressed={theme === "light"} onClick={() => setTheme("light")}><Sun size={16} /> Light</button>
+          <button aria-label="Dark mode" aria-pressed={theme === "dark"} onClick={() => setTheme("dark")}><Moon size={16} /> Dark</button>
+        </div>
+      </footer>
       {toast && (
         <div className="toast">
           <CircleCheck size={18} />
@@ -495,7 +477,7 @@ function App() {
   );
 }
 
-function Home({ go }: { go: (v: string) => void }) {
+function Home({ create, improve }: { create: () => void; improve: () => void }) {
   return (
     <main className="home">
       <section className="hero">
@@ -512,11 +494,11 @@ function Home({ go }: { go: (v: string) => void }) {
           customize your design, and download it with confidence.
         </p>
         <div className="hero-actions">
-          <button className="primary" onClick={() => go("templates")}>
-            Create my CV <ArrowRight size={17} />
+          <button className="primary" onClick={create}>
+            Create my resume <ArrowRight size={17} />
           </button>
-          <button className="secondary" onClick={() => go("templates")}>
-            Explore templates
+          <button className="secondary" onClick={improve}>
+            Improve my resume
           </button>
         </div>
         <div className="trust">
@@ -815,8 +797,9 @@ function Templates({
   return (
     <main className="template-page">
       <div className="page-intro">
-        <span className="eyebrow">STEP 1 OF 3</span>
+        <span className="eyebrow">{cv.importedSource ? "STEP 2 · CHOOSE YOUR NEW LOOK" : "STEP 1 · CHOOSE YOUR LOOK"}</span>
         <h1>Choose your CV template</h1>
+        {cv.importedSource && <p className="import-ready">Your imported details are ready. Choose a template to recreate your resume.</p>}
         <p>
           Every template is designed to make your experience shine. You can
           switch anytime.
@@ -841,8 +824,8 @@ function Templates({
       {!loading && !error && visible.length === 0 && <div className="template-empty">
         <LayoutTemplate size={32} />
         <h2>{allTemplates.length ? "No templates in this category" : "No templates yet"}</h2>
-        <p>Start a blank CV, customize its design, and save it as your own template.</p>
-        <button className="primary" onClick={startBlank}>Start a blank CV <ArrowRight size={16} /></button>
+        <p>Continue with a blank design, customize it, and save it as your own template.</p>
+        <button className="primary" onClick={startBlank}>Continue with a blank design <ArrowRight size={16} /></button>
       </div>}
       <div className="templates-grid">
         {!loading && !error && visible.map((t) => (
@@ -949,6 +932,19 @@ function Builder({
     previewRef = useRef<HTMLDivElement>(null),
     previewAreaRef = useRef<HTMLElement>(null);
   const photoEnabled = documentTemplate(cv).showPhoto !== false;
+  const [summaryBusy, setSummaryBusy] = useState(false);
+  const [summaryError, setSummaryError] = useState("");
+  const summaryInFlight = useRef(false);
+  const improveSummary = async () => {
+    if (summaryInFlight.current) return;
+    if (!cv.summary.trim() && !cv.experience.length) { setSummaryError("Add a summary or work experience first."); return; }
+    summaryInFlight.current = true; setSummaryBusy(true); setSummaryError("");
+    try {
+      const result = await requestAI<{ summary: string }>("summary", { text: resumeFacts(cv) });
+      setCV(current => current.id === cv.id && current.summary === cv.summary ? { ...current, summary: result.summary } : current);
+    } catch (error) { setSummaryError(error instanceof Error ? error.message : "Could not improve your summary."); }
+    finally { setSummaryBusy(false); summaryInFlight.current = false; }
+  };
   useEffect(() => {
     if (!photoEnabled) {
       photoReaderRef.current?.abort();
@@ -1201,18 +1197,13 @@ function Builder({
             />
             <button
               className="ai-button"
-              onClick={() => {
-                update(
-                  "summary",
-                  "Results-driven " +
-                    cv.title.toLowerCase() +
-                    " with a proven ability to deliver thoughtful, scalable solutions. Combines technical depth with a strong focus on measurable customer and business outcomes.",
-                );
-                notify("Summary improved with AI.");
-              }}
+              disabled={summaryBusy}
+              onClick={() => void improveSummary()}
             >
-              <Sparkles size={14} /> Improve with AI
+              <Sparkles size={14} /> {summaryBusy ? "Improving summary…" : "Improve with AI"}
             </button>
+            <p className="hint">Uses OpenAI to improve wording using your resume details.</p>
+            {summaryError && <p role="alert" className="import-error">{summaryError}</p>}
           </Accordion>
           <Accordion
             title={`Work experience (${cv.experience.length})`}
@@ -2293,7 +2284,7 @@ function Dashboard({
           <h1>Welcome back{auth ? `, ${auth.email.split("@")[0]}` : ""}.</h1>
           <p>Make your next career move feel inevitable.</p>
         </div>
-        <button className="primary" onClick={() => go("templates")}>
+        <button className="primary" onClick={() => go("create")}>
           <Plus size={17} /> Create new CV
         </button>
       </div>
@@ -2351,7 +2342,7 @@ function Dashboard({
             </div>
           </div>
         </article>
-        <button className="new-cv-card" onClick={() => go("templates")}>
+        <button className="new-cv-card" onClick={() => go("create")}>
           <span>
             <Plus size={22} />
           </span>
@@ -2478,12 +2469,21 @@ function Bar({ title, value }: { title: string; value: number }) {
 function Cover({ cv, notify }: { cv: CVData; notify: (s: string) => void }) {
   const [job, setJob] = useState(""),
     [company, setCompany] = useState(""),
-    [letter, setLetter] = useState("");
-  const generate = () => {
-    setLetter(
-      `Dear ${company} hiring team,\n\nI am excited to apply for the ${job} opportunity. As a ${cv.title} with a record of delivering thoughtful, high-impact work, I am drawn to the chance to contribute to ${company}.\n\nMy experience at ${cv.experience[0]?.company || "my current company"} has taught me how to pair strong craft with customer empathy and measurable results. I would love to bring that perspective, curiosity, and momentum to your team.\n\nThank you for your consideration. I look forward to discussing how I can contribute.\n\nSincerely,\n${cv.fullName}`,
-    );
-    notify("Cover letter generated.");
+    [letter, setLetter] = useState(""),
+    [jobDescription, setJobDescription] = useState(""),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  const inFlight = useRef(false);
+  const generate = async () => {
+    if (inFlight.current) return;
+    if (!cv.summary.trim() && !cv.experience.length && !cv.skills.length) { setError("Add your resume details before generating a cover letter."); return; }
+    inFlight.current = true; setBusy(true); setError("");
+    try {
+      const result = await requestAI<{ letter: string }>("cover-letter", { text: resumeFacts(cv), job, company, jobDescription });
+      setLetter(result.letter);
+      notify("Cover letter generated. Review it before sending.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not generate your cover letter."); }
+    finally { setBusy(false); inFlight.current = false; }
   };
   return (
     <main className="cover-page">
@@ -2498,11 +2498,13 @@ function Cover({ cv, notify }: { cv: CVData; notify: (s: string) => void }) {
           <Input label="Company" value={company} onChange={setCompany} />
           <label className="field">
             <span>Job description (optional)</span>
-            <textarea placeholder="Paste the job description…" />
+            <textarea placeholder="Paste the job description…" value={jobDescription} maxLength={12000} onChange={event => setJobDescription(event.target.value)} />
           </label>
-          <button className="primary" onClick={generate}>
-            <WandSparkles size={16} /> Generate cover letter
+          <button className="primary" disabled={busy || !job.trim() || !company.trim()} onClick={() => void generate()}>
+            <WandSparkles size={16} /> {busy ? "Writing your letter…" : "Generate cover letter"}
           </button>
+          <p className="hint">Your resume and job details are sent to OpenAI to write your draft.</p>
+          {error && <p role="alert" className="import-error">{error}</p>}
         </section>
         <section className="letter">
           <div className="letter-toolbar">
@@ -2513,6 +2515,7 @@ function Cover({ cv, notify }: { cv: CVData; notify: (s: string) => void }) {
           </div>
           {letter ? (
             <textarea
+              disabled={busy}
               value={letter}
               onChange={(e) => setLetter(e.target.value)}
             />

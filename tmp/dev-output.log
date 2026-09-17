@@ -36,3 +36,13 @@ CVForge API listening on http://localhost:4000
 6:58:59 PM [vite] (client) hmr update /src/styles.css
 7:44:45 PM [vite] (client) hmr update /src/main.tsx
 Restarting 'server/index.js'
+CVForge API listening on http://localhost:4000
+Restarting 'server/index.js'
+CVForge API listening on http://localhost:4000
+Restarting 'server/index.js'
+CVForge API listening on http://localhost:4000
+Restarting 'server/index.js'
+CVForge API listening on http://localhost:4000
+Restarting 'server/index.js'
+CVForge API listening on http://localhost:4000
+Failed running 'server/index.js'. Waiting for file changes before restarting...

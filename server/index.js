@@ -1,4 +1,5 @@
-import "dotenv/config";
+import { loadEnvironment } from "./config.js";
+import { createAIRouter } from "./ai.js";
 import bcrypt from "bcryptjs";
 import cors from "cors";
 import express from "express";
@@ -14,6 +15,7 @@ import sanchezTemplate from "../src/templates/sanchez.json" with { type: "json" 
 import chandranTemplate from "../src/templates/chandran.json" with { type: "json" };
 import kumariTemplate from "../src/templates/kumari.json" with { type: "json" };
 
+loadEnvironment();
 const app = express();
 const port = Number(process.env.PORT || 4000);
 const mongoUri = process.env.MONGODB_URI || "mongodb://localhost:27017/cvforge";
@@ -22,6 +24,7 @@ const jwtSecret = process.env.JWT_SECRET || "cvforge-development-secret";
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || true }));
 // Allow a 10 MB original upload encoded as a data URL plus its cropped preview.
 app.use(express.json({ limit: "16mb" }));
+app.use("/api/ai", createAIRouter());
 
 const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },

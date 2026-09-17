@@ -22,7 +22,9 @@
     "jsonwebtoken": "^9.0.3",
     "jspdf": "latest",
     "lucide-react": "latest",
+    "mammoth": "^1.12.3",
     "mongoose": "^9.9.5",
+    "pdfjs-dist": "^6.3.289",
     "react": "latest",
     "react-dom": "latest"
   },
