@@ -41,6 +41,7 @@ import "./styles.css";
 import PhotoEditor from "./PhotoEditor";
 import ImportResume from "./ImportResume";
 import { requestAI, resumeFacts } from "./ai";
+import { apiBase } from "./apiConfig";
 import carelineTemplate from "./templates/careline.json";
 import saleslineTemplate from "./templates/salesline.json";
 import boutiqueTemplate from "./templates/boutique.json";
@@ -160,7 +161,6 @@ const newSystemTemplateDraft = (): Template => ({
   design: { accent: "#514ed0", secondaryAccent: "#697386", background: "#ffffff", font: "Inter", headingFont: "Inter", spacing: 1, bodyFontSize: 11, nameFontSize: 28 },
 });
 const uid = () => Math.random().toString(36).slice(2, 9);
-const apiBase = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 const getToken = () => localStorage.getItem("cvforge-auth-token");
 const getOwnerKey = () => {
   const key = localStorage.getItem("cvforge-owner-key");
@@ -442,6 +442,13 @@ function App() {
   };
   return (
     <div data-theme={theme}>
+      <div className="page-controls">
+        <div className="theme-buttons" role="group" aria-label="Appearance">
+          <button aria-label="Light mode" aria-pressed={theme === "light"} onClick={() => setTheme("light")}><Sun size={16} /> Light</button>
+          <button aria-label="Dark mode" aria-pressed={theme === "dark"} onClick={() => setTheme("dark")}><Moon size={16} /> Dark</button>
+        </div>
+        {auth ? <button className="secondary small" onClick={logout}>Log out</button> : <button className="secondary small" onClick={() => setPage("login")}>Log in</button>}
+      </div>
       {page !== "home" && page !== "import" && <div className="page-back"><button className="text-button" onClick={() => setPage("home")}><ArrowLeft size={16} /> Back to home</button></div>}
       {page === "home" && <Home create={startNewResume} improve={() => setPage("import")} />}
       {page === "import" && <ImportResume back={() => setPage("home")} complete={importResume} />}
@@ -460,11 +467,6 @@ function App() {
         <div className="footer-links">
           {nav.filter(item => item.id !== "home").map(item => <button key={item.id} onClick={() => goToPage(item.id)}>{item.label}</button>)}
           {auth?.role === "admin" && <button onClick={() => goToPage("admin")}>Admin</button>}
-          {auth ? <button onClick={logout}>Log out</button> : <button onClick={() => setPage("login")}>Log in</button>}
-        </div>
-        <div className="theme-buttons" role="group" aria-label="Appearance">
-          <button aria-label="Light mode" aria-pressed={theme === "light"} onClick={() => setTheme("light")}><Sun size={16} /> Light</button>
-          <button aria-label="Dark mode" aria-pressed={theme === "dark"} onClick={() => setTheme("dark")}><Moon size={16} /> Dark</button>
         </div>
       </footer>
       {toast && (
@@ -1202,7 +1204,7 @@ function Builder({
             >
               <Sparkles size={14} /> {summaryBusy ? "Improving summary…" : "Improve with AI"}
             </button>
-            <p className="hint">Uses OpenAI to improve wording using your resume details.</p>
+            <p className="hint">Uses Google Gemini to improve wording using your resume details.</p>
             {summaryError && <p role="alert" className="import-error">{summaryError}</p>}
           </Accordion>
           <Accordion
@@ -2503,7 +2505,7 @@ function Cover({ cv, notify }: { cv: CVData; notify: (s: string) => void }) {
           <button className="primary" disabled={busy || !job.trim() || !company.trim()} onClick={() => void generate()}>
             <WandSparkles size={16} /> {busy ? "Writing your letter…" : "Generate cover letter"}
           </button>
-          <p className="hint">Your resume and job details are sent to OpenAI to write your draft.</p>
+          <p className="hint">Your resume and job details are sent to Google Gemini to write your draft.</p>
           {error && <p role="alert" className="import-error">{error}</p>}
         </section>
         <section className="letter">

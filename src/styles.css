@@ -113,6 +113,7 @@ button:disabled {
 .home {
   overflow: hidden;
 }
+.page-controls { display: flex; justify-content: flex-end; align-items: center; gap: 14px; padding: 16px 5vw; }
 .page-back { max-width: 1320px; margin: 0 auto; padding: 22px 5vw 0; }
 .page-back .text-button, .import-page > .text-button { display: inline-flex; align-items: center; gap: 8px; }
 .app-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; padding: 30px 5vw; border-top: 1px solid #e0e3ea; }
@@ -145,7 +146,7 @@ button:disabled {
   .hero-actions { flex-wrap: wrap; }
   .app-footer { align-items: flex-start; flex-direction: column; }
 }
-@media print { .app-footer, .page-back, .import-source { display: none !important; } }
+@media print { .page-controls, .app-footer, .page-back, .import-source { display: none !important; } }
 [data-theme] { min-height: 100vh; background: #fbfbfa; color: #172033; }
 .theme-buttons { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid #dde0e8; border-radius: 12px; background: #f0f1f5; }
 .theme-buttons button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 0 13px; border-radius: 8px; color: #586174; font-size: 13px; font-weight: 600; }

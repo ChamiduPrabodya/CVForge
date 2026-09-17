@@ -53,7 +53,7 @@ export default function ImportResume({ back, complete }: { back: () => void; com
         <button className="primary" disabled={busy} onClick={() => input.current?.click()}>{busy ? "Reading your CV…" : "Choose file"}</button>
         <small>PDF, Word (.docx), or TXT · Up to 10 MB</small>
       </div>
-      <p className="import-privacy">Your CV text is sent to OpenAI to organize and auto-fill your details. Review the results before choosing a template. Scanned images and photos are not imported.</p>
+      <p className="import-privacy">Your CV text is sent to Google Gemini to organize and auto-fill your details. Review the results before choosing a template. Scanned images and photos are not imported.</p>
       {busy && <p role="status">Reading your CV and organizing details with AI…</p>}
       {error && <p className="import-error" role="alert">{error}</p>}
       <label className="field"><span>{filename ? `Text from ${filename}` : "Or paste your CV text"}</span><textarea rows={details ? 6 : 10} value={text} disabled={busy} placeholder={"Paste your CV here, including contact details, experience, education, and skills…"} onChange={event => { setText(event.target.value); setDetails(null); setError(""); }} /></label>

@@ -1,15 +1,23 @@
 import type { CVData } from "./main";
+import { apiBase } from "./apiConfig";
 
 export async function requestAI<T>(action: string, body: Record<string, string>): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:4000/api"}/ai/${action}`, {
+    response = await fetch(`${apiBase}/ai/${action}`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body), signal: AbortSignal.timeout(65000),
     });
-  } catch { throw new Error("Unable to reach the AI service. Please try again or use basic import."); }
+  } catch (error) {
+    if (error instanceof DOMException && ["TimeoutError", "AbortError"].includes(error.name)) {
+      throw new Error("The AI request timed out. Your CV text is still available. Try again or choose Use basic import.");
+    }
+    throw new Error("The connection to the server was interrupted. Your CV text is still available. Try again when the server is running, or choose Use basic import.");
+  }
   const data = await response.json().catch(() => null);
-  if (!response.ok || !data) throw new Error(data?.error || "AI could not complete this request. Please try again.");
+  if (!response.ok || !data) throw new Error(data?.error || ([500, 502, 503, 504].includes(response.status)
+    ? "The backend is unavailable or restarting. Your CV text is still available. Try again shortly or choose Use basic import."
+    : "AI could not complete this request. Please try again."));
   return data as T;
 }
 

@@ -11,14 +11,14 @@ export function loadEnvironment({ directory = projectDirectory, env = process.en
     quiet: true,
   });
   // An empty inherited variable should not hide a configured local key.
-  if (!env.OPENAI_API_KEY?.trim() && parsed?.OPENAI_API_KEY?.trim()) {
-    env.OPENAI_API_KEY = parsed.OPENAI_API_KEY.trim();
+  if (!env.GEMINI_API_KEY?.trim() && parsed?.GEMINI_API_KEY?.trim()) {
+    env.GEMINI_API_KEY = parsed.GEMINI_API_KEY.trim();
   }
   return env;
 }
 
-export function getOpenAIKey() {
+export function getGeminiKey() {
   // .env.local may be created after the development server starts.
-  if (!process.env.OPENAI_API_KEY?.trim()) loadEnvironment();
-  return process.env.OPENAI_API_KEY?.trim();
+  if (!process.env.GEMINI_API_KEY?.trim()) loadEnvironment();
+  return process.env.GEMINI_API_KEY?.trim();
 }
