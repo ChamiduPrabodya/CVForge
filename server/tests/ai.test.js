@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import express from "express";
-import { createAIRouter, resumeSchema } from "../../server/routes/ai.js";
+import { createAIRouter, resumeSchema } from "../routes/ai.js";
 
 const empty = schema => schema.type === "string" ? "" : schema.type === "array" ? [] : Object.fromEntries(Object.entries(schema.properties).map(([key, value]) => [key, empty(value)]));
 const details = { ...empty(resumeSchema), fullName: "Jane Perera", email: "jane@example.com", experience: [{ title: "Engineer", company: "Acme", location: "", start: "2020", end: "Present", description: "Built tools." }] };
@@ -105,4 +105,39 @@ test("ignores thinking parts and assembles JSON text parts", async t => {
   const result = await request("import");
   assert.equal(result.status, 200);
   assert.equal((await result.json()).details.fullName, "Jane Perera");
+});
+
+test("imports with the backup model after primary unavailability and validates its output", async t => {
+  for (const valid of [true, false]) {
+    const calls = [];
+    const request = await fixture(t, async (url, options) => {
+      calls.push({ url, options });
+      if (calls.length === 1) return new Response("busy", { status: 503, headers: { "Retry-After": "0" } });
+      return response(valid ? details : { ...details, skills: "invalid" });
+    }, { getFallbackModel: () => "gemini-3.1-flash-lite" });
+    const result = await request("import");
+    assert.equal(calls.length, 2);
+    assert.ok(calls[1].url.endsWith("/gemini-3.1-flash-lite:generateContent"));
+    assert.equal(calls[1].options, calls[0].options);
+    assert.equal(result.status, valid ? 200 : 502);
+    const body = await result.json();
+    if (valid) assert.equal(body.details.fullName, details.fullName);
+    else assert.match(body.error, /invalid result/);
+  }
+});
+
+test("identifies provider failures without echoing resume text or secret provider messages", async t => {
+  for (const [status, errorStatus, expectedStatus, message] of [
+    [400, "INVALID_ARGUMENT", 502, /request format.*HTTP 400/],
+    [400, "FAILED_PRECONDITION", 503, /account setup.*FAILED_PRECONDITION/],
+    [413, "INVALID_ARGUMENT", 413, /shorter CV/],
+    [503, "UNAVAILABLE", 503, /temporarily unavailable.*HTTP 503/],
+  ]) {
+    const request = await fixture(t, async () => new Response(JSON.stringify({ error: { status: errorStatus, message: "test-only-secret private provider data" } }), { status, headers: { "Retry-After": "60" } }));
+    const result = await request("import");
+    assert.equal(result.status, expectedStatus);
+    const body = await result.json();
+    assert.match(body.error, message);
+    assert.doesNotMatch(body.error, /test-only-secret|private provider data/);
+  }
 });

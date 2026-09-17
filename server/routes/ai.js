@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { getGeminiKey } from "../config/env.js";
+import { requestGemini } from "../services/gemini.js";
 
 const string = { type: "string" };
 const object = (properties) => ({ type: "object", properties, required: Object.keys(properties), additionalProperties: false });
@@ -32,7 +33,7 @@ class AIError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 
-export function createAIRouter({ fetchImpl = (...args) => fetch(...args), getKey = getGeminiKey, limit = 10 } = {}) {
+export function createAIRouter({ fetchImpl = (...args) => fetch(...args), getKey = getGeminiKey, getFallbackModel = () => process.env.GEMINI_FALLBACK_MODEL ?? "gemini-3.1-flash-lite", limit = 10 } = {}) {
   const router = Router();
   const requests = new Map();
   let active = 0;
@@ -63,7 +64,9 @@ export function createAIRouter({ fetchImpl = (...args) => fetch(...args), getKey
       active++;
       try {
         const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
-        const response = await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+        const fallbackModel = getFallbackModel().trim() || model;
+        const modelUrl = name => `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(name)}:generateContent`;
+        const response = await requestGemini(modelUrl(model), {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
           signal: AbortSignal.timeout(55000),
@@ -72,9 +75,10 @@ export function createAIRouter({ fetchImpl = (...args) => fetch(...args), getKey
             contents: [{ role: "user", parts: [{ text: JSON.stringify({ resume: text, ...(action === "cover-letter" ? { job, company, jobDescription } : {}) }) }] }],
             generationConfig: { responseMimeType: "application/json", responseJsonSchema: schema, maxOutputTokens: action === "import" ? 12000 : 4000 },
           }),
-        });
+        }, { fetchImpl, retryUrl: modelUrl(fallbackModel) });
         if (!response.ok) {
           const failure = await response.json().catch(() => null);
+          console.warn("Gemini request failed", { action, primaryModel: model, fallbackModel, status: response.status });
           const reasons = (Array.isArray(failure?.error?.details) ? failure.error.details : []).map(item => item.reason);
           if (response.status === 401 || response.status === 403 || reasons.includes("API_KEY_INVALID") || reasons.includes("API_KEY_EXPIRED")) {
             throw new AIError(503, "The Gemini API key was rejected or does not have access. The site owner should check the key and its restrictions in Google AI Studio. You can use basic import meanwhile.");
@@ -84,8 +88,18 @@ export function createAIRouter({ fetchImpl = (...args) => fetch(...args), getKey
             if (retryAfter) res.set("Retry-After", retryAfter);
             throw new AIError(429, "Gemini's API quota or rate limit has been reached. Check the project's limits in Google AI Studio, or try again later. You can use basic import meanwhile.");
           }
-          if (response.status === 404) throw new AIError(503, "The configured Gemini model is unavailable. The site owner should check GEMINI_MODEL on the server.");
-          throw new AIError(502, "Gemini could not process this request. Please try again or use basic import.");
+          if (response.status === 404) throw new AIError(503, "A configured Gemini model is unavailable. The site owner should check GEMINI_MODEL and GEMINI_FALLBACK_MODEL on the server.");
+          if (response.status === 400 && failure?.error?.status === "FAILED_PRECONDITION") {
+            throw new AIError(503, "Gemini requires an account setup change before this request can run (HTTP 400 / FAILED_PRECONDITION). Check the Google AI Studio project's billing and regional availability. You can use basic import meanwhile.");
+          }
+          if (response.status === 400) throw new AIError(502, "Gemini rejected the request format (HTTP 400). You can use basic import while this is corrected.");
+          if (response.status === 413) throw new AIError(413, "Gemini could not accept this much resume text (HTTP 413). Try a shorter CV or use basic import.");
+          if ([408, 500, 502, 503, 504].includes(response.status)) {
+            const retryAfter = response.headers.get("Retry-After");
+            if (retryAfter) res.set("Retry-After", retryAfter);
+            throw new AIError(503, `Gemini is temporarily unavailable (HTTP ${response.status}). Your CV text is still available. Try again later or use basic import.`);
+          }
+          throw new AIError(502, `Gemini rejected this request (HTTP ${response.status}). Your CV text is still available. You can use basic import.`);
         }
         const result = await response.json();
         const candidate = result.candidates?.[0];

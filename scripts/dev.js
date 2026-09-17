@@ -14,7 +14,7 @@ function stop(code = 0) {
 }
 for (const args of [
   ["--watch", "server/index.js"],
-  ["node_modules/vite/bin/vite.js", ...process.argv.slice(2)],
+  ["node_modules/vite/bin/vite.js", "--config", "client/vite.config.ts", ...process.argv.slice(2)],
 ]) {
   const child = spawn(process.execPath, args, { stdio: "inherit", cwd: projectDirectory });
   children.push(child);

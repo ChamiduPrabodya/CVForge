@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 
 process.env.NODE_ENV = "test";
 process.env.JWT_SECRET = "template-route-test-secret";
-const { app, seedSystemTemplates } = await import("../../server/app.js");
+const { app, seedSystemTemplates } = await import("../app.js");
 const SystemTemplate = mongoose.model("SystemTemplate");
 const User = mongoose.model("User");
 const records = new Map();

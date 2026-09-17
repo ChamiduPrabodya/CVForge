@@ -6,7 +6,7 @@ import jwt from "jsonwebtoken";
 test("template deletion persists in MongoDB across reconnect and startup seeding", { skip: process.env.RUN_MONGO_TESTS !== "1" }, async () => {
   process.env.NODE_ENV = "test";
   process.env.JWT_SECRET = "isolated-template-integration-test";
-  const { app, seedSystemTemplates } = await import("../../server/app.js");
+  const { app, seedSystemTemplates } = await import("../app.js");
   // Use a unique local database; never modify the application's CVForge database.
   const database = `cvforge_template_test_${Date.now()}_${process.pid}`;
   const uri = `mongodb://127.0.0.1:27017/${database}`;

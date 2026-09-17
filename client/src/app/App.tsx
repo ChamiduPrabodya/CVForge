@@ -40,15 +40,15 @@ import PhotoEditor from "../components/PhotoEditor";
 import ImportResume from "../features/resume/ImportResume";
 import { requestAI, resumeFacts } from "../services/ai";
 import { apiBase } from "../config/api";
-import carelineTemplate from "../../shared/templates/careline.json";
-import saleslineTemplate from "../../shared/templates/salesline.json";
-import boutiqueTemplate from "../../shared/templates/boutique.json";
-import ivoryTemplate from "../../shared/templates/ivory.json";
-import mercadoTemplate from "../../shared/templates/mercado.json";
-import warnerTemplate from "../../shared/templates/warner.json";
-import sanchezTemplate from "../../shared/templates/sanchez.json";
-import chandranTemplate from "../../shared/templates/chandran.json";
-import kumariTemplate from "../../shared/templates/kumari.json";
+import carelineTemplate from "../../../shared/templates/careline.json";
+import saleslineTemplate from "../../../shared/templates/salesline.json";
+import boutiqueTemplate from "../../../shared/templates/boutique.json";
+import ivoryTemplate from "../../../shared/templates/ivory.json";
+import mercadoTemplate from "../../../shared/templates/mercado.json";
+import warnerTemplate from "../../../shared/templates/warner.json";
+import sanchezTemplate from "../../../shared/templates/sanchez.json";
+import chandranTemplate from "../../../shared/templates/chandran.json";
+import kumariTemplate from "../../../shared/templates/kumari.json";
 
 import type { Experience, Education, Project, Certification, Language, Achievement, Volunteer, Reference, DesignSettings, AuthUser, CVData, Template } from "../types/resume";
 

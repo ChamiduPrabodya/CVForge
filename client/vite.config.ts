@@ -3,9 +3,11 @@ import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, fileURLToPath(new URL('.', import.meta.url)), '')
+  const root = fileURLToPath(new URL('.', import.meta.url))
+  const envDir = fileURLToPath(new URL('..', import.meta.url))
+  const env = loadEnv(mode, envDir, '')
   const proxy = {
     '/api': { target: `http://127.0.0.1:${env.PORT || 4000}`, changeOrigin: true },
   }
-  return { plugins: [react()], server: { proxy }, preview: { proxy } }
+  return { root, envDir, plugins: [react()], server: { proxy }, preview: { proxy } }
 })

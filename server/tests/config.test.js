@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
-import { loadEnvironment } from "../../server/config/env.js";
+import { loadEnvironment } from "../config/env.js";
 
 function fixture(t) {
   const directory = mkdtempSync(join(tmpdir(), "cvforge-config-"));
@@ -50,7 +50,7 @@ test("default configuration paths resolve relative to the server module, not the
   // Intercept dotenv in a child process to check paths without reading real keys.
   const dotenvURL = pathToFileURL(resolve("node_modules/dotenv/lib/main.js")).href;
   const script = `import dotenv from ${JSON.stringify(dotenvURL)};
-    import { loadEnvironment } from ${JSON.stringify(new URL("../../server/config/env.js", import.meta.url).href)};
+    import { loadEnvironment } from ${JSON.stringify(new URL("../config/env.js", import.meta.url).href)};
     const paths = [];
     dotenv.config = options => { paths.push(...options.path); return { parsed: {} }; };
     loadEnvironment({ env: {} });
