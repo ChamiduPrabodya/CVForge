@@ -1,4 +1,5 @@
-import "dotenv/config";
+import { loadEnvironment } from "../server/config/env.js";
+loadEnvironment();
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 

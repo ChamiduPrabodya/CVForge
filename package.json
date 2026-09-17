@@ -4,12 +4,14 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "node server/dev.js",
+    "dev": "node scripts/dev.js",
     "dev:web": "vite",
     "dev:api": "node --watch server/index.js",
-    "reset:admin": "node server/reset-admin-password.js",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "reset:admin": "node scripts/reset-admin-password.js",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
+    "test": "node --test tests/server/*.test.js tests/frontend/*.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

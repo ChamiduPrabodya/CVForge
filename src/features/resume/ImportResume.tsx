@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, FileText, Upload } from "lucide-react";
 import { extractResumeText, parseResumeText } from "./resumeImport";
-import type { CVData } from "./main";
-import { requestAI } from "./ai";
+import type { CVData } from "../../types/resume";
+import { requestAI } from "../../services/ai";
 
 export default function ImportResume({ back, complete }: { back: () => void; complete: (data: Partial<CVData>, text: string, filename: string) => void }) {
   const [text, setText] = useState("");

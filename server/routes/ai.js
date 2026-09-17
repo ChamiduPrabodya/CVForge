@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
-import { getGeminiKey } from "./config.js";
+import { getGeminiKey } from "../config/env.js";
 
 const string = { type: "string" };
 const object = (properties) => ({ type: "object", properties, required: Object.keys(properties), additionalProperties: false });
@@ -62,7 +62,7 @@ export function createAIRouter({ fetchImpl = (...args) => fetch(...args), getKey
         : "Draft a concise tailored cover letter based on the resume and target role. Use the job description only to identify relevant existing qualifications. Do not claim unsupported qualifications or knowledge about the company. Return plain text without markdown.");
       active++;
       try {
-        const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+        const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
         const response = await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },

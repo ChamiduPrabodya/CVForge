@@ -1,5 +1,5 @@
-import type { CVData } from "./main";
-import { apiBase } from "./apiConfig";
+import type { CVData } from "../types/resume";
+import { apiBase } from "../config/api";
 
 export async function requestAI<T>(action: string, body: Record<string, string>): Promise<T> {
   let response: Response;

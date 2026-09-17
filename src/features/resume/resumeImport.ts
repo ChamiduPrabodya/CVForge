@@ -1,4 +1,4 @@
-import type { CVData } from "./main";
+import type { CVData } from "../../types/resume";
 
 const aliases: Record<string, string> = {
   summary: "summary", profile: "summary", "professional summary": "summary", "personal profile": "summary", "career objective": "summary", objective: "summary", "about me": "summary",

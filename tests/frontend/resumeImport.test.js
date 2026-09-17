@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { extractResumeText, parseResumeText } from "../src/resumeImport.ts";
+import { extractResumeText, parseResumeText } from "../../src/features/resume/resumeImport.ts";
 
 const source = `Jane Perera
 Software Engineer

@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
-const projectDirectory = fileURLToPath(new URL("../", import.meta.url));
+const projectDirectory = fileURLToPath(new URL("../../", import.meta.url));
 
 export function loadEnvironment({ directory = projectDirectory, env = process.env } = {}) {
   const { parsed } = dotenv.config({

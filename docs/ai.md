@@ -5,7 +5,7 @@ The browser sends resume text; it never receives the API key. PDF and DOCX text
 extraction still happens locally. Scanned documents require pasted text.
 
 Put `GEMINI_API_KEY` and optionally `GEMINI_MODEL` in `.env.local`, following
-`.env.example`. The default model is `gemini-2.5-flash`. `.env.local` is ignored by Git.
+`.env.example`. The default model is `gemini-3.6-flash`. `.env.local` is ignored by Git.
 Restart `npm.cmd run dev` after changing these settings. Do not put secrets in
 variables prefixed with `VITE_` or the tracked `.env` file.
 
@@ -36,5 +36,5 @@ API; they never appear in URLs, browser code, or server responses. Both standard
 and authorization key formats are passed as issued, without prefix assumptions.
 The prior OpenAI key and balance are no longer used by these routes.
 
-Validation: `node --test server/ai.test.js server/resumeImport.test.js server/templates.test.js`
+Validation: `npm test`
 and `npm.cmd run build`. Automated AI tests stub the provider and never incur API charges.

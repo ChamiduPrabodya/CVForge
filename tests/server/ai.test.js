@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import express from "express";
-import { createAIRouter, resumeSchema } from "./ai.js";
+import { createAIRouter, resumeSchema } from "../../server/routes/ai.js";
 
 const empty = schema => schema.type === "string" ? "" : schema.type === "array" ? [] : Object.fromEntries(Object.entries(schema.properties).map(([key, value]) => [key, empty(value)]));
 const details = { ...empty(resumeSchema), fullName: "Jane Perera", email: "jane@example.com", experience: [{ title: "Engineer", company: "Acme", location: "", start: "2020", end: "Present", description: "Built tools." }] };
@@ -19,7 +19,7 @@ async function fixture(t, fetchImpl, extra = {}) {
 
 test("imports through Gemini with a JSON schema and server-only credentials", async t => {
   const request = await fixture(t, async (url, options) => {
-    assert.equal(url, `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || "gemini-2.5-flash"}:generateContent`);
+    assert.equal(url, `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || "gemini-3.6-flash"}:generateContent`);
     assert.equal(options.headers["x-goog-api-key"], "test-only-secret");
     assert.ok(!url.includes("test-only-secret"));
     const body = JSON.parse(options.body);

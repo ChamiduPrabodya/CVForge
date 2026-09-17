@@ -6,7 +6,7 @@ const require = createRequire(import.meta.url);
 const { chromium } = require('C:/Users/User/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'isolated-browser-delete-test';
-const { app, seedSystemTemplates } = await import('../server/index.js');
+const { app, seedSystemTemplates } = await import('../server/app.js');
 const database = `cvforge_template_test_browser_${Date.now()}_${process.pid}`;
 let server;
 let browser;
