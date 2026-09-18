@@ -72,3 +72,21 @@ Remove-Item Env:RUN_MONGO_TESTS
 
 See [AI configuration](docs/ai.md) for Gemini settings. Keep API keys in
 Git-ignored `.env.local`; never put them in frontend code or `VITE_` variables.
+
+## Resume pages
+
+Long resumes automatically continue onto additional pages in the builder, PDF
+download, and print output. All templates use the same pagination code in
+`client/src/features/resume/`. It measures rendered text, preserves each column's
+order, repeats section headings on continuation pages, and splits oversized
+descriptions without dropping text. The page count updates as the resume changes.
+A4 and US Letter follow the selected template's page size.
+
+The optional browser regression check is `node client/tests/pagination.browser.mjs`
+with the development website running and Playwright/Chromium available. Set
+`PLAYWRIGHT_MODULE` and `CHROME_PATH` if using an existing browser tooling install.
+It checks content preservation, page overflow, PDF page counts, and printing for
+all bundled templates plus custom layouts. `PAGINATION_CASE=short` checks single-page
+resumes; `PAGINATION_CASE=oversized` checks entries longer than one page.
+`CHECK_EDITING=1` with the short case also checks mobile editing and export.
+The browser checks stub AI and catalog responses and make no paid API calls.

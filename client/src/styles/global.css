@@ -2634,3 +2634,24 @@ textarea {
 @media print {
   :root[data-app-theme], :root[data-app-theme] body, [data-theme] { color-scheme: light; background: #fff; color: #172033; }
 }
+
+/* Shared page layout for every resume template and PDF export. */
+.a4-wrap:has(.resume-pages) { background: transparent; box-shadow: none; min-height: 0; }
+.resume-measure { position: fixed; left: -20000px; top: 0; width: 620px; visibility: hidden; pointer-events: none; }
+.resume-pages { width: 620px; display: flex; flex-direction: column; gap: 24px; }
+.resume-page { flex: none; width: 620px; overflow: hidden; background: white; box-shadow: 0 4px 16px #15203826; }
+.resume-page > .cv-document { overflow-wrap: anywhere; }
+.cv-document.cv-twocolumn { grid-template-columns: var(--sidebar-width, 37%) minmax(0, 1fr); }
+.cv-document.cv-twocolumn.sidebar-right { grid-template-columns: minmax(0, 1fr) var(--sidebar-width, 37%); }
+.resume-page .kumari-row:not(:has(.resume-section-fragment)) { display: none; }
+.pagination-error { background: #fff1f1; color: #9c2935; padding: 16px; }
+@media print {
+  html, body { margin: 0 !important; padding: 0 !important; }
+  .builder, .builder-columns, .preview-area { display: block !important; height: auto !important; min-height: 0; overflow: visible !important; }
+  .resume-measure, .pagination-error { display: none !important; }
+  .a4-wrap:has(.resume-pages) { width: 620px; margin: 0; min-height: 0; zoom: 1 !important; }
+  .resume-pages { display: block; zoom: var(--resume-print-scale); }
+  .resume-page { margin: 0; box-shadow: none; break-inside: avoid; break-after: page; }
+  .resume-page:last-child { break-after: auto; }
+  .resume-page > .cv-document { min-height: 0; }
+}

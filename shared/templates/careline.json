@@ -17,7 +17,7 @@
   "divider": "line",
   "skillStyle": "plain",
   "contactStyle": "stacked",
-  "sidebarSections": ["skills", "languages", "certifications"],
+  "sidebarSections": ["expertise", "skills", "languages", "certifications"],
   "sectionLabels": { "experience": "Employment", "summary": "Profile" },
   "design": {
     "accent": "#70aa8d",

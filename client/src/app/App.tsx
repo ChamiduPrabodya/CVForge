@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
+import PaginatedResume from "../features/resume/PaginatedResume";
+import { exportResume } from "../features/resume/exportResume";
 import {
   ArrowLeft,
   ArrowRight,
@@ -853,6 +853,10 @@ function Builder({
     previewAreaRef = useRef<HTMLElement>(null);
   const photoEnabled = documentTemplate(cv).showPhoto !== false;
   const [summaryBusy, setSummaryBusy] = useState(false);
+  const [pageCount, setPageCount] = useState(1);
+  const [exporting, setExporting] = useState(false);
+  const pageSize = documentTemplate(cv).pageSize ?? "a4";
+  const previewDocument = useMemo(() => <CVPreview cv={cv} />, [cv]);
   const [summaryError, setSummaryError] = useState("");
   const summaryInFlight = useRef(false);
   const improveSummary = async () => {
@@ -977,25 +981,16 @@ function Builder({
       return;
     }
     const node = previewRef.current;
-    if (!node) return;
+    if (!node || exporting || !pageCount) return;
+    setExporting(true);
     notify("Generating your PDF…");
-    const previousZoom = zoom;
-    setZoom(1);
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     try {
-      const canvas = await html2canvas(node, {
-        scale: 2,
-        backgroundColor: "#ffffff",
-      });
-      const img = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const w = 210,
-        h = (canvas.height * 210) / canvas.width;
-      pdf.addImage(img, "PNG", 0, 0, w, h);
-      pdf.save(`${cv.fullName.replaceAll(" ", "-")}-CV.pdf`);
+      await exportResume(node, pageSize, `${cv.fullName.replaceAll(" ", "-")}-CV.pdf`);
       notify("PDF generated successfully.");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Could not generate the PDF. Please try again.");
     } finally {
-      setZoom(previousZoom);
+      setExporting(false);
     }
   };
   return (
@@ -1012,13 +1007,13 @@ function Builder({
           <span className="saved">Saved locally</span>
         </div>
         <div>
-          <button className="secondary compact" onClick={() => window.print()}>
+          <button className="secondary compact" disabled={!pageCount || exporting} onClick={() => window.print()}>
             <Printer size={15} /> Print
           </button>
           <button className="secondary compact" onClick={save}>
             <Save size={15} /> Save
           </button>
-          <button className="primary compact" onClick={exportPDF}>
+          <button className="primary compact" disabled={!pageCount || exporting} onClick={exportPDF}>
             <Download size={15} /> Download PDF
           </button>
         </div>
@@ -1295,7 +1290,7 @@ function Builder({
         </aside>
         <section ref={previewAreaRef} className={"preview-area " + (tab === "preview" ? "on" : "")}>
           <div className="zoom-bar">
-            <span>Live preview</span>
+            <span aria-live="polite">Live preview · {pageCount} {pageCount === 1 ? "page" : "pages"}</span>
             <div className="zoom-controls" aria-label="CV preview zoom controls">
               <span className="zoom-hint">Ctrl + scroll</span>
               <button onClick={() => setZoom((value) => Math.max(0.6, +(value - 0.1).toFixed(1)))} disabled={zoom <= 0.6} aria-label="Zoom out">−</button>
@@ -1317,7 +1312,7 @@ function Builder({
               } as React.CSSProperties
             }
           >
-            <CVPreview cv={cv} />
+            <PaginatedResume design={cv.design} size={pageSize} onPageCount={setPageCount}>{previewDocument}</PaginatedResume>
           </div>
         </section>
         <aside className={"design-panel " + (tab === "style" ? "on" : "")}>
@@ -2153,17 +2148,19 @@ function CVSection({ type, cv, label }: { type: string; cv: CVData; label?: stri
         ))}
       </section>
     );
-  if (type === "skills" || type === "expertise")
+  if (type === "skills")
     return (
       <section className="cv-section">
         <h3>{heading}</h3>
         <div className="cv-skills">
-          {cv[type].map((s) => (
+          {cv.skills.map((s) => (
             <span key={s}>{s}</span>
           ))}
         </div>
       </section>
     );
+  if (type === "expertise")
+    return <section className="cv-section"><h3>{heading}</h3><ul className="cv-list">{cv.expertise.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul></section>;
   if (type === "projects")
     return <section className="cv-section"><h3>{heading}</h3>{cv.projects.map((p) => <div className="cv-entry project" key={p.id}>{p.name && <h4>{p.name}</h4>}{p.description && <p>{p.description}</p>}{p.tech && <b>{p.tech}</b>}{p.url && <span className="cv-link">{p.url}</span>}{p.github && <span className="cv-link">{p.github}</span>}</div>)}</section>;
   if (type === "certifications")
