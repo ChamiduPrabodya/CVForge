@@ -4,6 +4,7 @@ import { exportResume } from "../features/resume/exportResume";
 import {
   ArrowLeft,
   ArrowRight,
+  ArrowUp,
   Check,
   ChevronDown,
   ChevronUp,
@@ -400,10 +401,36 @@ function CVForgeApp() {
       {page === "login" && <AuthPage onComplete={completeAuth} />}
       {page === "admin" && auth?.role === "admin" && <AdminPage notify={notify} auth={auth} onTemplatesChange={(templates) => setSystemTemplates(templates.filter((template) => template.status !== "draft"))} />}
       <footer className="app-footer">
-        <button className="brand" onClick={() => setPage("home")}>CVForge</button>
-        <div className="footer-links">
-          {nav.filter(item => item.id !== "home").map(item => <button key={item.id} onClick={() => goToPage(item.id)}>{item.label}</button>)}
-          {auth?.role === "admin" && <button onClick={() => goToPage("admin")}>Admin</button>}
+        {page === "home" && <div className="footer-cta">
+          <div>
+            <span className="eyebrow">YOUR NEXT CHAPTER STARTS HERE</span>
+            <h2>Great experience.<br /><em>Even better on paper.</em></h2>
+            <p>Turn what you’ve done into what comes next.</p>
+          </div>
+          <button className="primary" onClick={startNewResume}>Create my resume <ArrowRight size={18} /></button>
+        </div>}
+        <div className="footer-main">
+          <div className="footer-about">
+            <button className="brand footer-brand" onClick={() => setPage("home")} aria-label="CVForge home"><span className="footer-brand-icon"><FileText size={22} /></span>CVForge<span className="footer-brand-dot">.</span></button>
+            <p>Your experience deserves a great first impression. Create a CV that tells your story with clarity and confidence.</p>
+            <span className="footer-signoff"><Sparkles size={14} /> A little polish. A world of possibility.</span>
+          </div>
+          <nav className="footer-links" aria-label="Resume tools">
+            <h3>Create & refine</h3>
+            {nav.filter(item => ["templates", "builder", "ats", "cover"].includes(item.id)).map(item => <button key={item.id} onClick={() => goToPage(item.id)}>{item.label}</button>)}
+          </nav>
+          <nav className="footer-links" aria-label="Your workspace">
+            <h3>Your workspace</h3>
+            <button onClick={() => goToPage("dashboard")}>My CVs</button>
+            <button onClick={() => goToPage("import")}>Improve a resume</button>
+            {auth ? <button onClick={logout}>Log out</button> : <button onClick={() => goToPage("login")}>Log in / Sign up</button>}
+            {auth?.role === "admin" && <button onClick={() => goToPage("admin")}>Admin</button>}
+          </nav>
+        </div>
+        <div className="footer-bottom">
+          <small>© {new Date().getFullYear()} CVForge. All rights reserved.</small>
+          <span>Made for your next chapter.</span>
+          <button onClick={() => window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" })}>Back to top <ArrowUp size={15} /></button>
         </div>
       </footer>
       {toast && (
@@ -419,6 +446,7 @@ function CVForgeApp() {
 function Home({ create, improve }: { create: () => void; improve: () => void }) {
   return (
     <main className="home">
+      <div className="hero-layout">
       <section className="hero">
         <div className="eyebrow">
           <Sparkles size={14} /> The smarter way to shape your story
@@ -464,6 +492,7 @@ function Home({ create, improve }: { create: () => void; improve: () => void }) 
           <CircleCheck size={20} />
         </div>
       </section>
+      </div>
       <section className="proof">
         <span>Built for focused, modern job applications</span>
         <b>Clear</b>
