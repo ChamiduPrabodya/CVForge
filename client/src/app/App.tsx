@@ -204,6 +204,11 @@ const nav = [
 ];
 
 export default function App() {
+  const token = window.location.pathname.match(/^\/share\/([0-9a-f-]{36})\/?$/i)?.[1];
+  return token ? <SharedReview token={token} /> : <CVForgeApp />;
+}
+
+function CVForgeApp() {
   const [page, setPage] = useState(() => {
       try { return localStorage.getItem("cvforge-auth-user") ? "dashboard" : "home"; } catch { return "home"; }
     }),
@@ -853,6 +858,46 @@ function ThumbDesign({ cv, style }: { cv: CVData; style: string }) {
   return <><div className="thumb-modern-accent" />{photo}<div className="thumb-name">{cv.fullName}</div><div className="thumb-title">{cv.title}</div><div className="thumb-head">ABOUT</div>{lines}<div className="thumb-head">EXPERIENCE</div>{lines}{skills}</>;
 }
 
+type Review = { id: string; name: string; message: string; createdAt: string };
+function SharedReview({ token }: { token: string }) {
+  const [cv, setCV] = useState<CVData | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [name, setName] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
+  useEffect(() => {
+    void apiRequest<{ document: CVData; reviews: Review[] }>(`/shared/${encodeURIComponent(token)}`)
+      .then((result) => { setCV(hydrateCV(result.document)); setReviews(result.reviews); })
+      .catch((reason) => setError(reason instanceof Error ? reason.message : "This review link is unavailable."));
+  }, [token]);
+  const submitReview = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSending(true); setError("");
+    try {
+      const review = await apiRequest<Review>(`/shared/${encodeURIComponent(token)}/reviews`, { method: "POST", body: JSON.stringify({ name, message }) });
+      setReviews((items) => [...items, review]); setMessage("");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not submit feedback."); }
+    finally { setSending(false); }
+  };
+  if (error && !cv) return <main className="shared-review-state"><h1>Review link unavailable</h1><p>{error}</p></main>;
+  if (!cv) return <main className="shared-review-state"><p>Loading CV…</p></main>;
+  return <main className="shared-review-page">
+    <header className="shared-review-header"><span className="eyebrow">CVFORGE REVIEW</span><h1>{cv.fullName || "Shared CV"}</h1><p>Read-only preview. Leave feedback below to help improve this CV.</p></header>
+    <section className="shared-review-document"><CVPreview cv={cv} template={documentTemplate(cv)} /></section>
+    <section className="shared-feedback" aria-labelledby="feedback-title">
+      <h2 id="feedback-title">Feedback</h2>
+      {reviews.length ? <div className="review-list">{reviews.map((review) => <article key={review.id}><b>{review.name}</b><time>{new Date(review.createdAt).toLocaleDateString()}</time><p>{review.message}</p></article>)}</div> : <p className="empty-feedback">No feedback yet. Be the first to help.</p>}
+      <form onSubmit={submitReview}>
+        <label><span>Your name</span><input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} required /></label>
+        <label><span>Your feedback</span><textarea value={message} onChange={(event) => setMessage(event.target.value)} maxLength={2000} required placeholder="Share a clear, constructive suggestion…" /></label>
+        {error && <p className="auth-error">{error}</p>}
+        <button className="primary" disabled={sending}>{sending ? "Sending…" : "Send feedback"}</button>
+      </form>
+    </section>
+  </main>;
+}
+
 function Builder({
   cv,
   setCV,
@@ -885,6 +930,7 @@ function Builder({
   const [summaryBusy, setSummaryBusy] = useState(false);
   const [pageCount, setPageCount] = useState(1);
   const [exporting, setExporting] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const pageSize = documentTemplate(cv).pageSize ?? "a4";
   const previewDocument = useMemo(() => <CVPreview cv={cv} />, [cv]);
   const [summaryError, setSummaryError] = useState("");
@@ -1023,6 +1069,22 @@ function Builder({
       setExporting(false);
     }
   };
+  const shareForReview = async () => {
+    setSharing(true);
+    try {
+      await apiRequest(`/cvs/${encodeURIComponent(cv.id)}`, { method: "PUT", body: JSON.stringify({ document: cv }) });
+      const { token } = await apiRequest<{ token: string }>(`/cvs/${encodeURIComponent(cv.id)}/share`, { method: "POST" });
+      const link = `${window.location.origin}/share/${token}`;
+      try {
+        await navigator.clipboard.writeText(link);
+        notify("Review link copied. Anyone with it can view and comment on this CV.");
+      } catch {
+        window.prompt("Copy this review link", link);
+      }
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Could not create a review link. Please sign in and try again.");
+    } finally { setSharing(false); }
+  };
   return (
     <main className="builder">
       <div className="builder-top">
@@ -1037,6 +1099,9 @@ function Builder({
           <span className="saved">Saved locally</span>
         </div>
         <div>
+          <button className="secondary compact" disabled={sharing} onClick={shareForReview}>
+            <UserRound size={15} /> {sharing ? "Creating link…" : "Share for review"}
+          </button>
           <button className="secondary compact" disabled={!pageCount || exporting} onClick={() => window.print()}>
             <Printer size={15} /> Print
           </button>

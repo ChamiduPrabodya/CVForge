@@ -29,7 +29,13 @@ const userSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
   role: { type: String, enum: ["admin", "user"], default: "user" },
 }, { timestamps: true });
-const cvSchema = new mongoose.Schema({ userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true }, documentId: { type: String, required: true }, document: { type: mongoose.Schema.Types.Mixed, required: true } }, { timestamps: true });
+const cvSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+  documentId: { type: String, required: true },
+  document: { type: mongoose.Schema.Types.Mixed, required: true },
+  share: { token: { type: String, unique: true, sparse: true }, enabled: { type: Boolean, default: false } },
+  reviews: [{ name: { type: String, required: true }, message: { type: String, required: true }, createdAt: { type: Date, default: Date.now } }],
+}, { timestamps: true });
 cvSchema.index({ userId: 1, documentId: 1 }, { unique: true });
 const customTemplateSchema = new mongoose.Schema({ userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true }, templateId: { type: String, required: true }, template: { type: mongoose.Schema.Types.Mixed, required: true } }, { timestamps: true });
 customTemplateSchema.index({ userId: 1, templateId: 1 }, { unique: true });
@@ -111,6 +117,47 @@ app.put("/api/cvs/:documentId", requireAuth, async (req, res, next) => {
     if (!document || typeof document !== "object") return res.status(400).json({ error: "A CV document is required." });
     const record = await CV.findOneAndUpdate({ userId: req.user.id, documentId: req.params.documentId }, { userId: req.user.id, documentId: req.params.documentId, document }, { upsert: true, new: true, runValidators: true }).lean();
     res.json({ document: record.document, updatedAt: record.updatedAt });
+  } catch (error) { next(error); }
+});
+app.post("/api/cvs/:documentId/share", requireAuth, async (req, res, next) => {
+  try {
+    const record = await CV.findOneAndUpdate(
+      { userId: req.user.id, documentId: req.params.documentId },
+      { $set: { "share.enabled": true }, $setOnInsert: { "share.token": randomUUID() } },
+      { new: true },
+    ).lean();
+    if (!record) return res.status(404).json({ error: "Save this CV before creating a review link." });
+    if (!record.share?.token) {
+      const updated = await CV.findByIdAndUpdate(record._id, { $set: { "share.token": randomUUID() } }, { new: true }).lean();
+      return res.json({ token: updated.share.token });
+    }
+    return res.json({ token: record.share.token });
+  } catch (error) { next(error); }
+});
+app.delete("/api/cvs/:documentId/share", requireAuth, async (req, res, next) => {
+  try {
+    const result = await CV.updateOne({ userId: req.user.id, documentId: req.params.documentId }, { $set: { "share.enabled": false } });
+    if (!result.matchedCount) return res.status(404).json({ error: "CV not found." });
+    return res.status(204).end();
+  } catch (error) { next(error); }
+});
+app.get("/api/shared/:token", async (req, res, next) => {
+  try {
+    const record = await CV.findOne({ "share.token": req.params.token, "share.enabled": true }).lean();
+    if (!record) return res.status(404).json({ error: "This review link is unavailable." });
+    const { importedSource, originalPhoto, ...document } = record.document;
+    return res.json({ document, reviews: record.reviews.map((review) => ({ id: review._id.toString(), name: review.name, message: review.message, createdAt: review.createdAt })) });
+  } catch (error) { next(error); }
+});
+app.post("/api/shared/:token/reviews", async (req, res, next) => {
+  try {
+    const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+    const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+    if (!name || name.length > 80 || !message || message.length > 2000) return res.status(400).json({ error: "Enter your name and feedback (up to 2,000 characters)." });
+    const record = await CV.findOneAndUpdate({ "share.token": req.params.token, "share.enabled": true }, { $push: { reviews: { name, message } } }, { new: true }).lean();
+    if (!record) return res.status(404).json({ error: "This review link is unavailable." });
+    const review = record.reviews.at(-1);
+    return res.status(201).json({ id: review._id.toString(), name: review.name, message: review.message, createdAt: review.createdAt });
   } catch (error) { next(error); }
 });
 app.get("/api/templates", requireAuth, async (req, res, next) => {

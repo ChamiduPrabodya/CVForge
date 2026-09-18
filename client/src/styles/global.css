@@ -448,6 +448,25 @@ button:disabled {
 .template-recommendation-result { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 5px; align-items: baseline; padding-top: 12px; border-top: 1px solid #e2e1f5; }
 .template-recommendation-result b, .template-match { color: #4542a8; font-weight: 700; }
 .template-match { margin-top: 8px !important; font-size: 11px !important; }
+.shared-review-page { max-width: 1060px; margin: 0 auto; padding: 56px 24px 90px; }
+.shared-review-header { margin-bottom: 28px; }
+.shared-review-header h1 { margin: 10px 0 7px; font-size: 38px; letter-spacing: -1.8px; }
+.shared-review-header p, .empty-feedback { color: #697386; margin: 0; line-height: 1.55; }
+.shared-review-document { overflow: auto; padding: 28px; border: 1px solid #e2e5e8; border-radius: 12px; background: #edf0f3; }
+.shared-review-document > .cv-document { width: 794px; min-height: 1123px; margin: 0 auto; box-shadow: 0 8px 24px #1720331a; }
+.shared-feedback { max-width: 720px; margin: 30px auto 0; padding: 24px; border: 1px solid #e2e5e8; border-radius: 12px; background: #fff; }
+.shared-feedback h2 { margin: 0 0 16px; font-size: 22px; }
+.shared-feedback form { display: grid; gap: 13px; margin-top: 22px; }
+.shared-feedback label { display: grid; gap: 6px; color: #4e5765; font-size: 12px; font-weight: 600; }
+.shared-feedback input, .shared-feedback textarea { width: 100%; padding: 10px; border: 1px solid #d7dbe0; border-radius: 7px; background: #fff; color: #27324c; font: inherit; }
+.shared-feedback textarea { min-height: 110px; resize: vertical; }
+.shared-feedback form .primary { justify-self: start; }
+.review-list { display: grid; gap: 10px; }
+.review-list article { padding: 14px; border: 1px solid #e8eaec; border-radius: 8px; }
+.review-list b { font-size: 13px; }
+.review-list time { margin-left: 8px; color: #7c8390; font-size: 11px; }
+.review-list p { margin: 7px 0 0; color: #4e5765; font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+.shared-review-state { max-width: 600px; margin: 120px auto; padding: 28px; text-align: center; }
 .template-toolbar {
   border-top: 1px solid #eaebe8;
   border-bottom: 1px solid #eaebe8;
