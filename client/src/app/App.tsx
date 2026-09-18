@@ -167,6 +167,20 @@ const categories = [
   "Experienced",
   "Custom",
 ];
+const templateRecommendationRules = [
+  { styles: ["careline"], terms: ["nurse", "nursing", "health", "healthcare", "medical", "care", "caregiver", "clinical", "hospital"], reason: "Its clear employment timeline works well for healthcare roles." },
+  { styles: ["salesline", "boutique"], terms: ["sales", "retail", "customer service", "customer", "store", "cashier", "merchandising"], reason: "Its layout gives customer-facing skills and results strong visibility." },
+  { styles: ["mercado"], terms: ["marketing", "brand", "content", "communications", "social media", "business development"], reason: "Its visual hierarchy suits marketing and business-facing work." },
+  { styles: ["warner", "chandran"], terms: ["accountant", "accounting", "finance", "financial", "audit", "administrator", "administrative", "office manager"], reason: "Its structured layout keeps professional experience easy to scan." },
+  { styles: ["ivory"], terms: ["consultant", "consulting", "analyst", "business analyst", "manager", "project manager", "human resources", "recruiter"], reason: "Its refined, professional format fits consulting and business roles." },
+  { styles: ["chandran", "sanchez"], terms: ["developer", "engineer", "software", "data", "it", "technology", "technical"], reason: "Its clean, text-forward design is easy for recruiters and ATS systems to scan." },
+] as const;
+const recommendTemplate = (template: Template, jobTitle: string) => {
+  const title = jobTitle.trim().toLowerCase();
+  if (!title) return { score: 0, reason: "" };
+  const rule = templateRecommendationRules.find((candidate) => candidate.styles.some((style) => style === template.style) && candidate.terms.some((term) => title.includes(term)));
+  return rule ? { score: 1, reason: rule.reason } : { score: 0, reason: "" };
+};
 const sectionTitles: Record<string, string> = {
   summary: "Profile",
   experience: "Experience",
@@ -710,10 +724,13 @@ function Templates({
   startBlank: () => void;
 }) {
   const [filter, setFilter] = useState("All"),
-    [preview, setPreview] = useState<Template | null>(null);
-  const visible = allTemplates.filter(
-    (t) => filter === "All" || t.category === filter,
-  );
+    [preview, setPreview] = useState<Template | null>(null),
+    [jobTitle, setJobTitle] = useState("");
+  const recommendations = useMemo(() => new Map(allTemplates.map((template) => [template.id, recommendTemplate(template, jobTitle)])), [allTemplates, jobTitle]);
+  const visible = allTemplates
+    .filter((template) => filter === "All" || template.category === filter)
+    .sort((first, second) => recommendations.get(second.id)!.score - recommendations.get(first.id)!.score);
+  const suggestedTemplate = allTemplates.find((template) => recommendations.get(template.id)?.score);
   return (
     <main className="template-page">
       <div className="page-intro">
@@ -725,6 +742,18 @@ function Templates({
           switch anytime.
         </p>
       </div>
+      <section className="template-recommender" aria-labelledby="template-recommender-title">
+        <div>
+          <span className="eyebrow">PERSONALIZED RECOMMENDATION</span>
+          <h2 id="template-recommender-title">What job are you applying for?</h2>
+          <p>Enter a title and we will place the most suitable templates first. You can still choose any template.</p>
+        </div>
+        <label>
+          <span className="sr-only">Job title</span>
+          <input value={jobTitle} onChange={(event) => setJobTitle(event.target.value)} placeholder="e.g. Registered Nurse, Marketing Manager" />
+        </label>
+        {suggestedTemplate && <p className="template-recommendation-result"><b>Recommended: {suggestedTemplate.name}</b><span>{recommendations.get(suggestedTemplate.id)?.reason}</span></p>}
+      </section>
       <div className="template-toolbar">
         <div className="filters">
           {categories.map((c) => (
@@ -759,6 +788,7 @@ function Templates({
               <div>
                 <h3>{t.name}</h3>
                 <p>{t.description}</p>
+                {recommendations.get(t.id)?.score === 1 && <p className="template-match">Recommended for {jobTitle.trim()}</p>}
               </div>
               {t.ats && <span className="badge">ATS-friendly</span>}
               <div className="card-actions">

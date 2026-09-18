@@ -439,6 +439,15 @@ button:disabled {
   line-height: 1.6;
   margin: 0;
 }
+.template-recommender { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, .8fr); gap: 16px 24px; align-items: end; margin: 28px 0; padding: 20px; border: 1px solid #deddf4; border-radius: 12px; background: #fafaff; }
+.template-recommender h2 { margin: 7px 0 4px; color: #30364a; font-size: 19px; letter-spacing: -.6px; }
+.template-recommender p { margin: 0; color: #6c7382; font-size: 12px; line-height: 1.5; }
+.template-recommender label { display: block; }
+.template-recommender input { width: 100%; min-height: 42px; padding: 10px 12px; border: 1px solid #cccbe8; border-radius: 7px; background: #fff; color: #30364a; font: inherit; }
+.template-recommender input:focus { outline: 2px solid #514ed0; outline-offset: 2px; }
+.template-recommendation-result { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 5px; align-items: baseline; padding-top: 12px; border-top: 1px solid #e2e1f5; }
+.template-recommendation-result b, .template-match { color: #4542a8; font-weight: 700; }
+.template-match { margin-top: 8px !important; font-size: 11px !important; }
 .template-toolbar {
   border-top: 1px solid #eaebe8;
   border-bottom: 1px solid #eaebe8;
@@ -1851,6 +1860,7 @@ textarea {
     align-items: flex-start;
     gap: 9px;
   }
+  .template-recommender { grid-template-columns: 1fr; }
   .template-toolbar > span {
     display: none;
   }
@@ -2620,6 +2630,10 @@ textarea {
   [data-theme="dark"] .skill-editor button { color: #d1ceff; }
   [data-theme="dark"] :is(.save-template-button:hover, .filters button:hover, .photo-editor-close:hover) { background: #403e6c; color: #fff; }
   [data-theme="dark"] .template-card:hover { border-color: #8e89df; box-shadow: 0 8px 24px #0003; }
+  [data-theme="dark"] .template-recommender { border-color: #45426f; background: #1d2436; }
+  [data-theme="dark"] .template-recommender h2 { color: var(--ui-text); }
+  [data-theme="dark"] .template-recommender input { border-color: #575486; background: #161f30; color: var(--ui-text); }
+  [data-theme="dark"] .template-recommendation-result { border-color: #45426f; }
   [data-theme="dark"] .template-designer { background: linear-gradient(135deg, #25253f, #1a2233); border-color: #4a476c; }
   [data-theme="dark"] .auth-aside { background: #25224e; }
   [data-theme="dark"] .auth-aside .eyebrow { color: #d1ceff; }
