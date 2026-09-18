@@ -1643,6 +1643,10 @@ textarea {
   line-height: 1.4;
   margin-top: 3px;
 }
+.template-validation { margin-bottom: 0; }
+.recommendations article.warning svg { color: #b7791f; }
+.keyword-suggestions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.keyword-suggestions span { padding: 3px 6px; border-radius: 999px; background: #f0efff; color: #4542a8; font-size: 10px; font-weight: 600; }
 .cover-grid {
   display: grid;
   grid-template-columns: 360px 1fr;

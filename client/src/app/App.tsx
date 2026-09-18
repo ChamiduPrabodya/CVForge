@@ -2273,21 +2273,28 @@ function Dashboard({
 function ATS({ cv }: { cv: CVData }) {
   const [job, setJob] = useState(""),
     [ran, setRan] = useState(false);
-  const keywords = useMemo(
-    () =>
-      job
-        .toLowerCase()
-        .split(/\W+/)
-        .filter((x) => x.length > 3),
-    [job],
-  );
-  const matches = keywords.filter(
-    (k) =>
-      cv.skills.some((s) => s.toLowerCase().includes(k)) ||
-      cv.summary.toLowerCase().includes(k),
-  );
+  const template = documentTemplate(cv);
+  const cvText = useMemo(() => [
+    cv.fullName, cv.title, cv.summary, ...cv.skills, ...cv.expertise,
+    ...cv.experience.flatMap((item) => [item.title, item.company, item.location, item.description]),
+    ...cv.education.flatMap((item) => [item.degree, item.school, item.location, item.description ?? ""]),
+    ...cv.projects.flatMap((item) => [item.name, item.description, item.tech]),
+    ...cv.certifications.flatMap((item) => [item.name, item.organization]),
+  ].join(" ").toLowerCase(), [cv]);
+  const keywords = useMemo(() => {
+    const ignored = new Set(["about", "across", "after", "also", "and", "are", "assist", "business", "candidate", "company", "customers", "degree", "development", "experience", "for", "from", "have", "ideal", "into", "knowledge", "looking", "must", "our", "position", "required", "requirements", "responsibilities", "role", "skills", "team", "that", "the", "their", "this", "they", "through", "with", "work", "working", "would", "year", "years", "you", "your"]);
+    return [...new Set((job.toLowerCase().match(/[a-z][a-z0-9+#.-]*/g) ?? []).filter((word) => word.length > 2 && !ignored.has(word)))];
+  }, [job]);
+  const matches = keywords.filter((keyword) => cvText.includes(keyword));
+  const missingKeywords = keywords.filter((keyword) => !cvText.includes(keyword)).slice(0, 12);
   const contactCount = [cv.fullName, cv.email, cv.phone, cv.location].filter(Boolean).length;
-  const atsScore = Math.min(100, Math.round((contactCount / 4) * 25 + Math.min(cv.skills.length, 8) * 4 + Math.min(cv.experience.length, 4) * 8 + (cv.summary ? 15 : 0)));
+  const templateChecks = [
+    { passed: Boolean(template.ats), title: template.ats ? "ATS-ready template selected" : "Template is not marked ATS-friendly", detail: template.ats ? "This template has been approved for ATS-friendly use." : "Use an ATS-friendly template for the clearest parsing results." },
+    { passed: template.layout !== "two-column", title: template.layout === "two-column" ? "Two-column layout detected" : "Single-column layout", detail: template.layout === "two-column" ? "Some older applicant tracking systems can read sidebars out of order." : "Single-column layouts are the most reliable for applicant tracking systems." },
+    { passed: !cv.photo, title: cv.photo ? "Profile photo included" : "No profile photo", detail: cv.photo ? "Photos do not improve ATS parsing and can take valuable document space." : "Text-only content is easier for applicant tracking systems to parse." },
+  ];
+  const templateScore = Math.round((templateChecks.filter((check) => check.passed).length / templateChecks.length) * 100);
+  const atsScore = Math.min(100, Math.round((contactCount / 4) * 20 + Math.min(cv.skills.length + cv.expertise.length, 10) * 2 + Math.min(cv.experience.length, 4) * 10 + (cv.summary.trim() ? 10 : 0) + templateScore * 0.2));
   const jobScore = keywords.length ? Math.round((matches.length / keywords.length) * 100) : atsScore;
   return (
     <main className="analysis-page">
@@ -2309,7 +2316,7 @@ function ATS({ cv }: { cv: CVData }) {
           <textarea
             placeholder="Paste the job description here…"
             value={job}
-            onChange={(e) => setJob(e.target.value)}
+            onChange={(e) => { setJob(e.target.value); setRan(false); }}
           />
           <button className="primary" onClick={() => setRan(true)}>
             <Search size={16} /> Analyze my CV
@@ -2328,9 +2335,19 @@ function ATS({ cv }: { cv: CVData }) {
             <Bar title="Contact details" value={contactCount * 25} />
             <Bar title="Skills & keywords" value={ran ? jobScore : Math.min(100, cv.skills.length * 12)} />
             <Bar title="Experience coverage" value={Math.min(100, cv.experience.length * 25)} />
+            <Bar title="Template compatibility" value={templateScore} />
           </div>
         </section>
       </div>
+      <section className="recommendations template-validation">
+        <h2>Template validation</h2>
+        <div>
+          {templateChecks.map((check) => <article className={check.passed ? "passed" : "warning"} key={check.title}>
+            {check.passed ? <CircleCheck /> : <Zap />}
+            <span><b>{check.title}</b><small>{check.detail}</small></span>
+          </article>)}
+        </div>
+      </section>
       <section className="recommendations">
         <h2>Recommended next steps</h2>
         <div>
@@ -2353,16 +2370,9 @@ function ATS({ cv }: { cv: CVData }) {
           <article>
             <Zap />
             <span>
-              <b>
-                {ran && matches.length
-                  ? "Use matching keywords"
-                  : "Consider adding Python"}
-              </b>
-              <small>
-                {ran && matches.length
-                  ? `We found ${matches.length} strong keywords from this role.`
-                  : "It appears often in roles similar to yours."}
-              </small>
+              <b>{ran ? "Keyword suggestions" : "Analyze a job description"}</b>
+              <small>{ran ? missingKeywords.length ? "Add these only where they accurately describe your experience:" : "Your CV includes all detected role keywords." : "Paste a role description to find relevant missing keywords."}</small>
+              {ran && missingKeywords.length > 0 && <div className="keyword-suggestions">{missingKeywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div>}
             </span>
           </article>
         </div>
