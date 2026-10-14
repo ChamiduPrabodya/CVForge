@@ -20,12 +20,18 @@ client/                      Frontend
   vite.config.ts             Vite dev server, build, and API proxy
   tsconfig*.json             Frontend and Vite TypeScript settings
   dist/                      Generated production build (ignored)
-server/                      Backend
-  index.js                   Database connection and HTTP startup
-  app.js                     Express app, account/template routes, and database models
-  routes/ai.js               Gemini import and writing routes
-  services/gemini.js         Gemini requests and bounded retries
-  config/env.js              Server environment loading
+server/                      Backend (MVC-style modules)
+  src/
+    server.js                Database initialization and HTTP startup
+    app.js                   Express app and middleware setup
+    config/                  Environment, runtime settings, database, and project paths
+    routes/                  API endpoints grouped by feature
+    controllers/             Request handlers for each feature
+    models/                  MongoDB schemas and models
+    middleware/              Authentication, parameter validation, and errors
+    services/                Authentication helpers and Gemini requests
+    validators/              Credentials, CV, and template validation
+    seeds/                   Administrator and bundled-template initialization
   tests/                     API, configuration, and database integration tests
 shared/templates/            JSON templates used by frontend and backend
 scripts/                     Development launcher and admin maintenance
@@ -42,12 +48,14 @@ single Vite configuration; type checking does not emit duplicate root config fil
 
 Use Node.js 24 or newer and an available MongoDB instance. Run `npm install` once
 at the project root. Both folders use the root package and lockfile; run the commands below there.
-Keep local settings in `.env.local` at the project root. See `.env.example` for AI
+Keep local settings in `.env.local` at the project root. See `.env.example` for server and AI
 settings. The server also reads `.env` as a fallback.
 
 - `npm run dev` starts both frontend and backend.
 - `npm run dev:web` starts only Vite.
 - `npm run dev:api` starts only the backend with automatic reload.
+- `npm start` starts the backend without file watching.
+- `npm run test:integration` runs the MongoDB workflow checks against a local database.
 - `npm test` runs unit and API tests without paid AI requests.
 - `npm run typecheck` checks frontend and Vite configuration types.
 - `npm run build` checks types and builds the frontend into `client/dist/`.
@@ -60,18 +68,19 @@ Development normally runs at `http://localhost:5173`, with the backend at
 
 ## Tests
 
-The template API tests are in `server/tests/templates.test.js`.
-The MongoDB integration test is skipped unless `RUN_MONGO_TESTS=1` is set.
-It uses an isolated temporary database on a local MongoDB instance.
+The API tests are in `server/tests/`. Database tests cover accounts, CV ownership,
+sharing, feedback, custom templates, and admin template management. They use isolated
+temporary databases on a local MongoDB instance and are skipped by `npm test` unless
+`RUN_MONGO_TESTS=1` is set.
 
 ```powershell
-$env:RUN_MONGO_TESTS = "1"
-node --test server/tests/templates.integration.test.js
-Remove-Item Env:RUN_MONGO_TESTS
+npm.cmd run test:integration
 ```
 
 See [AI configuration](docs/ai.md) for Gemini settings. Keep API keys in
 Git-ignored `.env.local`; never put them in frontend code or `VITE_` variables.
+See [backend setup and API reference](docs/backend.md) for routes, database tests,
+administrator setup, and production environment settings.
 
 ## Resume pages
 

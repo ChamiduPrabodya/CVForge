@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import express from "express";
-import { createAIRouter, resumeSchema } from "../routes/ai.js";
+import { createAIRouter, resumeSchema } from "../src/routes/ai.routes.js";
 
 const empty = schema => schema.type === "string" ? "" : schema.type === "array" ? [] : Object.fromEntries(Object.entries(schema.properties).map(([key, value]) => [key, empty(value)]));
 const details = { ...empty(resumeSchema), fullName: "Jane Perera", email: "jane@example.com", experience: [{ title: "Engineer", company: "Acme", location: "", start: "2020", end: "Present", description: "Built tools." }] };

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, FileText, Upload } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, FileText, Info, LoaderCircle, Sparkles, Upload } from "lucide-react";
 import { extractResumeText, parseResumeText } from "./resumeImport";
 import type { CVData } from "../../types/resume";
 import { requestAI } from "../../services/ai";
@@ -45,21 +45,36 @@ export default function ImportResume({ back, complete }: { back: () => void; com
   };
   return <main className="import-page">
     <button className="text-button" onClick={back} disabled={busy}><ArrowLeft size={16} /> Back to home</button>
-    <div className="page-intro"><span className="eyebrow">GIVE YOUR EXPERIENCE A FRESH LOOK</span><h1>Improve your resume</h1><p>Add your existing CV. We’ll fill in your details, then you can choose a new template and make it yours.</p></div>
-    <section className="import-card">
-      <div className={`import-dropzone${busy ? " is-busy" : ""}`} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); void read(event.dataTransfer.files[0]); }}>
-        <Upload size={32} aria-hidden="true" /><h2>Upload your existing CV</h2><p>Drop your file here or choose it from your device.</p>
-        <input ref={input} type="file" accept=".pdf,.docx,.txt" aria-label="Upload existing CV" disabled={busy} onChange={event => void read(event.target.files?.[0])} hidden />
-        <button className="primary" disabled={busy} onClick={() => input.current?.click()}>{busy ? "Reading your CV…" : "Choose file"}</button>
-        <small>PDF, Word (.docx), or TXT · Up to 10 MB</small>
-      </div>
-      <p className="import-privacy">Your CV text is sent to Google Gemini to organize and auto-fill your details. Review the results before choosing a template. Scanned images and photos are not imported.</p>
-      {busy && <p role="status">Reading your CV and organizing details with AI…</p>}
-      {error && <p className="import-error" role="alert">{error}</p>}
-      <label className="field"><span>{filename ? `Text from ${filename}` : "Or paste your CV text"}</span><textarea rows={details ? 6 : 10} value={text} disabled={busy} placeholder={"Paste your CV here, including contact details, experience, education, and skills…"} onChange={event => { setText(event.target.value); setDetails(null); setError(""); }} /></label>
-      <button className="secondary" disabled={busy || !text.trim()} onClick={() => void review()}><FileText size={16} /> {details ? "Read details again with AI" : "Read my CV with AI"}</button>
-      {error && text.trim() && <button className="secondary" disabled={busy} onClick={basicImport}>Use basic import</button>}
-    </section>
+    <header className="import-heading">
+      <div className="page-intro"><span className="eyebrow">A FRESH START FOR YOUR NEXT CHAPTER</span><h1>Improve your resume<span>.</span></h1><p>Bring your experience. We’ll help give it a fresh look.</p></div>
+      <ol className="import-steps" aria-label="Resume improvement steps">
+        <li className={details ? "is-complete" : "is-current"} aria-current={!details ? "step" : undefined}><span>{details ? <Check size={15} /> : "01"}</span>Add your CV</li>
+        <li className={details ? "is-current" : ""} aria-current={details ? "step" : undefined}><span>02</span>Review details</li>
+        <li><span>03</span>Choose a design</li>
+      </ol>
+    </header>
+    <div className="import-workspace">
+      <section className="import-card import-upload" aria-labelledby="import-upload-title" aria-busy={busy}>
+        <div className="import-card-heading"><span className="import-section-icon"><Upload size={19} /></span><div><h2 id="import-upload-title">Upload your CV</h2><p>Start with the resume you already have.</p></div><span className="import-option">OPTION 01</span></div>
+        <div className={`import-dropzone${busy ? " is-busy" : ""}`} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); void read(event.dataTransfer.files[0]); }}>
+          <span className="import-file-icon">{busy ? <LoaderCircle className="import-spinner" size={30} /> : <FileText size={30} />}</span>
+          <h3>{busy ? "Finding the details in your CV…" : filename ? "Your CV is uploaded" : "Drop your CV here"}</h3>
+          <p>{filename || "or choose a file from your device"}</p>
+          <button className="primary" disabled={busy} onClick={() => input.current?.click()}><Upload size={16} />{busy ? "Reading your CV…" : filename ? "Choose another file" : "Choose file"}</button>
+          <small>PDF, Word (.docx), or TXT · Up to 10 MB</small>
+          <input ref={input} type="file" accept=".pdf,.docx,.txt" aria-label="Upload existing CV" disabled={busy} onChange={event => void read(event.target.files?.[0])} hidden />
+        </div>
+        <p className="import-file-tip"><Info size={15} />Use a document with selectable text. Scanned images and photos aren’t supported.</p>
+      </section>
+      <section className="import-card import-paste" aria-labelledby="import-paste-title" aria-busy={busy}>
+        <div className="import-card-heading"><span className="import-section-icon"><FileText size={19} /></span><div><h2 id="import-paste-title">Paste your CV text</h2><p>No file handy? Add your details here.</p></div><span className="import-option">OPTION 02</span></div>
+        <label className="field import-text-field"><span>{filename ? `Text from ${filename}` : "Or paste your CV text"}</span><textarea rows={10} value={text} disabled={busy} placeholder={"Your name and contact details\n\nWork experience\nYour roles, companies, and achievements…\n\nEducation & skills\nYour qualifications and what you do best…"} onChange={event => { setText(event.target.value); setDetails(null); setError(""); }} /></label>
+        <div className="import-paste-actions"><span>Include your experience, education, and skills.</span><button className="primary" disabled={busy || !text.trim()} onClick={() => void review()}><Sparkles size={16} /> {details ? "Read details again with AI" : "Read my CV with AI"}<ArrowRight size={16} /></button></div>
+      </section>
+    </div>
+    {busy && <p className="import-status" role="status"><LoaderCircle className="import-spinner" size={17} />Reading your CV and organizing details with AI…</p>}
+    {error && <div className="import-error"><p role="alert">{error}</p>{text.trim() && <button className="secondary" disabled={busy} onClick={basicImport}>Use basic import</button>}</div>}
+    <div className="import-privacy"><Sparkles size={18} /><p><strong>A little help with the details.</strong> Your CV text is sent to Google Gemini to organize and auto-fill your information. You’ll review the results before choosing a template.</p></div>
     {details && <section className="import-card import-review" aria-label="Imported details">
       <h2>Your details are ready to review</h2><p>Check your contact information below. You can edit every section in the builder after choosing a template.</p>
       <div className="import-fields">{([['fullName', 'Full name'], ['title', 'Professional title'], ['email', 'Email'], ['phone', 'Phone'], ['location', 'Location'], ['website', 'Website'], ['linkedin', 'LinkedIn']] as const).map(([key, label]) => <label className="field" key={key}><span>{label}</span><input value={details[key] ?? ""} onChange={event => setDetails({ ...details, [key]: event.target.value })} /></label>)}</div>

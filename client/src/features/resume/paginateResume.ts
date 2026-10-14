@@ -31,6 +31,9 @@ export function paginateResume(source: HTMLElement, host: HTMLElement, height: n
   const pageAt = (index: number) => {
     while (pages.length <= index) {
       const page = skeleton.cloneNode(true) as HTMLElement;
+      // Remove first-page artwork before measuring continuation pages so its
+      // space is available to content in the preview, print, and PDF export.
+      if (pages.length > 0) page.querySelectorAll("[data-first-page-only]").forEach(element => element.remove());
       const frame = document.createElement("div");
       frame.className = "resume-page";
       frame.style.height = `${height}px`;

@@ -1,7 +1,7 @@
 # Gemini AI features
 
 CV import, summary improvement, and cover letters in `client/src/` call the
-server's `/api/ai` routes in `server/routes/ai.js`.
+server's `/api/ai` routes in `server/src/routes/ai.routes.js`.
 The browser sends resume text; it never receives the API key. PDF and DOCX text
 extraction still happens locally. Scanned documents require pasted text.
 

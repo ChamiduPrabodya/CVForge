@@ -1,7 +1,5 @@
 import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
-
-const projectDirectory = fileURLToPath(new URL("../", import.meta.url));
+import { projectDirectory, projectPath, serverEntryPath, viteConfigPath } from "../server/src/config/paths.js";
 
 // Start both services so signing up works with the standard development command.
 const children = [];
@@ -13,8 +11,8 @@ function stop(code = 0) {
   process.exitCode = code;
 }
 for (const args of [
-  ["--watch", "server/index.js"],
-  ["node_modules/vite/bin/vite.js", "--config", "client/vite.config.ts", ...process.argv.slice(2)],
+  ["--watch", serverEntryPath],
+  [projectPath("node_modules", "vite", "bin", "vite.js"), "--config", viteConfigPath, ...process.argv.slice(2)],
 ]) {
   const child = spawn(process.execPath, args, { stdio: "inherit", cwd: projectDirectory });
   children.push(child);

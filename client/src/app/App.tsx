@@ -1668,7 +1668,7 @@ function CVPreview({ cv: document, template }: { cv: CVData; template?: Template
   const documentStyle = { "--page-margin": `${t.pageMargin ?? 54}px`, "--cv-background": t.design?.background ?? "#ffffff", "--secondary-accent": t.design?.secondaryAccent ?? "#697386", "--cv-heading-font": t.design?.headingFont ?? t.design?.font ?? "Inter", "--sidebar-width": `${t.sidebarWidth ?? 37}%` } as React.CSSProperties;
   const classes = `${isTwoColumn ? "cv-twocolumn" : `cv-${t.style}`} header-${t.headerAlign ?? "left"} photo-${t.photoShape ?? "circle"} divider-${t.divider ?? "line"} skills-${t.skillStyle ?? "chips"} contact-${t.contactStyle ?? "inline"} density-${t.density ?? "standard"} ${t.sidebarPosition === "right" ? "sidebar-right" : ""}`;
   const contact = [cv.email, cv.phone, cv.location, cv.website, cv.linkedin].filter(Boolean);
-  const photo = showPhoto ? <div className="cv-photo-slot" aria-label="Profile photo"><img src={cv.photo} alt={`${cv.fullName || "Your"} profile`} /></div> : null;
+  const photo = showPhoto ? <div className="cv-photo-slot" data-first-page-only aria-label="Profile photo"><img src={cv.photo} alt={`${cv.fullName || "Your"} profile`} /></div> : null;
   const identity = <>{cv.fullName && <h1>{cv.fullName}</h1>}{cv.title && <h2>{cv.title}</h2>}</>;
   const contactDetails = contact.length > 0 && <div className="contact">{contact.map((item, index) => <span key={index}>{item}</span>)}</div>;
   if (isTwoColumn) {
@@ -2107,7 +2107,7 @@ function WarnerCV({ cv, template, sections }: { cv: CVData; template: Template; 
   return <article className={`cv-document cv-careline cv-warner${template.sidebarPosition === "right" ? " warner-sidebar-right" : ""}`} style={style}>
     <div className="warner-top-accent" aria-hidden="true" />
     {(showPhoto || cv.fullName || cv.title || contact.length > 0) && <header className={`warner-header${showPhoto ? "" : " warner-no-photo"}`}>
-      {showPhoto && <div className={`warner-photo photo-${template.photoShape ?? "circle"}`}><img src={cv.photo} alt={`${cv.fullName || "Your"} profile`} /></div>}
+      {showPhoto && <div className={`warner-photo photo-${template.photoShape ?? "circle"}`} data-first-page-only><img src={cv.photo} alt={`${cv.fullName || "Your"} profile`} /></div>}
       {(cv.fullName || cv.title || contact.length > 0) && <div className="warner-identity">
         {cv.fullName && <h1>{cv.fullName}</h1>}{cv.title && <p>{cv.title}</p>}
         {contact.length > 0 && <div className="warner-contact">{contact.map(({ label, value, icon: Icon }) => <span key={label}><Icon aria-hidden="true" /><span className="sr-only">{label}: </span><span>{value}</span></span>)}</div>}
@@ -2152,7 +2152,7 @@ function MercadoCV({ cv, template, sections }: { cv: CVData; template: Template;
   } as React.CSSProperties;
   return <article className={`cv-document cv-careline cv-mercado${template.sidebarPosition === "right" ? " mercado-sidebar-right" : ""}`} style={style}>
     <aside className="mercado-sidebar">
-      {template.showPhoto !== false && cv.photo && <div className={`mercado-photo photo-${template.photoShape ?? "circle"}`}><img src={cv.photo} alt={`${cv.fullName || "Your"} profile`} /></div>}
+      {template.showPhoto !== false && cv.photo && <div className={`mercado-photo photo-${template.photoShape ?? "circle"}`} data-first-page-only><img src={cv.photo} alt={`${cv.fullName || "Your"} profile`} /></div>}
       {contact.length > 0 && <section className="cv-section mercado-contact"><h3>{template.sectionLabels?.contact || "Contact"}</h3><dl>{contact.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></section>}
       {sections.filter((section) => sidebarSections.includes(section)).map(renderSection)}
     </aside>
@@ -2189,7 +2189,7 @@ function IvoryCV({ cv, template, sections }: { cv: CVData; template: Template; s
   const contact = [cv.location, cv.email, cv.phone, cv.website, cv.linkedin].filter(Boolean);
   return <article className={`cv-document cv-careline cv-ivory${template.sidebarPosition === "right" ? " ivory-sidebar-right" : ""}`} style={style}>
     {(showPhoto || cv.fullName || cv.title || contact.length > 0) && <header className={`ivory-header${showPhoto ? "" : " ivory-no-photo"}`}>
-      {showPhoto && <div className={`ivory-photo photo-${template.photoShape ?? "square"}`}><img src={cv.photo} alt={`${cv.fullName || "Your"} profile`} /></div>}
+      {showPhoto && <div className={`ivory-photo photo-${template.photoShape ?? "square"}`} data-first-page-only><img src={cv.photo} alt={`${cv.fullName || "Your"} profile`} /></div>}
       {(cv.fullName || cv.title || contact.length > 0) && <div className="ivory-intro">{cv.fullName && <h1>{cv.fullName}</h1>}{cv.title && <h2>{cv.title}</h2>}{contact.length > 0 && <div className="ivory-contact">{contact.map((item, index) => <span key={index}>{item}</span>)}</div>}</div>}
     </header>}
     <div className="ivory-columns"><aside className="ivory-sidebar">{sections.filter((section) => sidebarSections.includes(section)).map(renderSection)}</aside><div className="ivory-main">{sections.filter((section) => !sidebarSections.includes(section)).map(renderSection)}</div></div>
@@ -2204,7 +2204,7 @@ function PortraitCV({ cv, template, sections }: { cv: CVData; template: Template
   };
   return <article className="cv-document cv-portrait" style={{ "--portrait-sidebar-width": `${template.sidebarWidth ?? 38}%` } as React.CSSProperties}>
     <aside className="portrait-sidebar">
-      {template.showPhoto !== false && cv.photo && <div className="portrait-photo"><img src={cv.photo} alt={`${cv.fullName || "Your"} profile`} /></div>}
+      {template.showPhoto !== false && cv.photo && <div className="portrait-photo" data-first-page-only><img src={cv.photo} alt={`${cv.fullName || "Your"} profile`} /></div>}
       {sections.filter((section) => sidebarSections.includes(section)).map(renderSection)}
     </aside>
     <div className="portrait-main">

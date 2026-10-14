@@ -1,19 +1,18 @@
-import { loadEnvironment } from "../server/config/env.js";
-loadEnvironment();
+import { loadEnvironment } from "../server/src/config/env.js";
+import { User } from "../server/src/models/User.js";
+import { validCredentials } from "../server/src/validators/auth.validators.js";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 
-const mongoUri = process.env.MONGODB_URI || "mongodb://localhost:27017/cvforge";
-const email = (process.env.ADMIN_EMAIL || "admin@cvforge.local").toLowerCase();
+loadEnvironment();
+const mongoUri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/cvforge";
+const email = (process.env.ADMIN_EMAIL || "admin@cvforge.local").trim().toLowerCase();
 const password = process.env.ADMIN_PASSWORD;
 
-if (!password || password.length < 8) {
-  console.error("Set ADMIN_PASSWORD in .env to at least 8 characters before running this command.");
+if (!validCredentials(email, password)) {
+  console.error("Set ADMIN_EMAIL and ADMIN_PASSWORD in .env.local; use at least 8 characters and at most 72 UTF-8 bytes for the password.");
   process.exit(1);
 }
-
-const userSchema = new mongoose.Schema({ email: String, passwordHash: String, role: String }, { strict: false });
-const User = mongoose.model("User", userSchema, "users");
 
 try {
   await mongoose.connect(mongoUri);

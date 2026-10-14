@@ -11,7 +11,12 @@ const templates = await Promise.all((await readdir(directory)).filter(name => na
 templates.push({ ...templates[0], id: 'custom-letter', name: 'Custom Letter', style: 'custom', layout: 'single', pageSize: 'letter' });
 templates.push({ ...templates[0], id: 'custom-columns', name: 'Custom Columns', style: 'twocolumn', layout: 'two-column', sidebarPosition: 'right' });
 templates.push({ ...templates[0], id: 'portrait', name: 'Portrait', style: 'portrait', layout: 'two-column' });
+if (process.env.WITH_PHOTO) {
+  templates.filter(template => ['custom', 'twocolumn', 'portrait'].includes(template.style)).forEach(template => { template.showPhoto = true; });
+  templates.push({ ...templates.find(template => template.style === 'warner'), id: 'warner-right', name: 'Warner Right', sidebarPosition: 'right' });
+}
 const details = {
+  photo: process.env.WITH_PHOTO ? `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#a8b8d0"/><circle cx="60" cy="45" r="23" fill="#455570"/></svg>')}` : '',
   fullName: 'Pagination Example', title: 'Software Engineer', email: 'pages@example.com', phone: '123456789', location: 'Colombo', website: '', linkedin: '',
   summary: 'Experienced engineer building accessible and reliable applications.',
   experience: Array.from({ length: 18 }, (_, index) => ({ id: `job-${index}`, title: `Engineer ${index}`, company: `Company ${index}`, location: 'Remote', start: '2020', end: '2024', description: `ENTRY${index}START Built accessible services and supported teams.\nImproved reliability through careful testing and monitoring.\nDocumented the application and mentored engineers. ENTRY${index}END` })),
@@ -61,6 +66,13 @@ try {
       const pages = [...document.querySelectorAll('.resume-page')];
       return {
         count: pages.length,
+        sourcePhotos: document.querySelectorAll('.resume-measure [data-first-page-only] img').length,
+        pagePhotos: pages.map(page => page.querySelectorAll('img').length),
+        continuationPhotoSlots: pages.slice(1).reduce((count, page) => count + page.querySelectorAll('[data-first-page-only]').length, 0),
+        narrowPhotoHeaders: pages.slice(1).filter(page => {
+          const header = page.querySelector('.ivory-header, .warner-header');
+          return header && getComputedStyle(header).gridTemplateColumns.trim().split(/\s+/).length !== 1;
+        }).length,
         mismatch: sources.flatMap((section, index) => {
           const text = [...document.querySelectorAll(`.resume-pages section[data-page-slot="${index}"]`)].map(clean).join('');
           return clean(section) === text ? [] : [index];
@@ -79,6 +91,11 @@ try {
     assert.deepEqual(report.mismatch, [], `${template.name} must preserve every section's content once`);
     assert.equal(report.overflow, 0, `${template.name} must fit all page content`);
     assert.deepEqual(report.shiftedColumns, [], `${template.name} continuation text must retain its column width`);
+    assert.equal(report.pagePhotos[0], report.sourcePhotos, `${template.name} must keep the first-page photo`);
+    assert.ok(report.pagePhotos.slice(1).every(count => count === 0), `${template.name} must not repeat photos on continuation pages`);
+    assert.equal(report.continuationPhotoSlots, 0, `${template.name} must remove the photo container on continuation pages`);
+    assert.equal(report.narrowPhotoHeaders, 0, `${template.name} must reclaim the photo column in continuation headers`);
+    if (process.env.WITH_PHOTO && ['custom', 'twocolumn', 'portrait', 'warner', 'ivory', 'mercado'].includes(template.style)) assert.equal(report.sourcePhotos, 1, `${template.name} photo fixture must be rendered`);
     if (!process.env.SKIP_PDF) {
       const downloadPromise = page.waitForEvent('download', { timeout: 60000 }).catch(async error => {
         console.error('Export failed:', await page.locator('.toast').allTextContents());

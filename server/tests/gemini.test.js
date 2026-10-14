@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { requestGemini } from "../services/gemini.js";
+import { requestGemini } from "../src/services/gemini.js";
 
 const url = "https://generativelanguage.googleapis.com/test";
 const options = () => ({ method: "POST", body: "synthetic input", signal: AbortSignal.timeout(55000) });

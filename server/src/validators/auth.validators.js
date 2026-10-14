@@ -1,0 +1,1 @@
+export const validCredentials = (email, password) => typeof email === "string" && email.length <= 254 && /^\S+@\S+\.\S+$/.test(email) && typeof password === "string" && password.length >= 8 && Buffer.byteLength(password, "utf8") <= 72;
